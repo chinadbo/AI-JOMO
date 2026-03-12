@@ -1,12 +1,28 @@
 ---
 /**
- * Redirect root to English version
+ * Redirect root to browser language or English
+ * Uses client-side redirect for static output
  */
-export const GET = () => {
-  return new Response(null, {
-    status: 302,
-    headers: {
-      'Location': '/en/',
-    },
-  });
-};
+---
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Redirecting...</title>
+</head>
+<body>
+  <script is:inline>
+    // Check browser language and redirect
+    var lang = navigator.language.toLowerCase();
+    if (lang.startsWith('zh')) {
+      window.location.replace('/zh/');
+    } else {
+      window.location.replace('/en/');
+    }
+  </script>
+  <p>Redirecting to <a id="link" href="/en/">/en/</a>...</p>
+  <script is:inline>
+    var lang = navigator.language.toLowerCase();
+    document.getElementById('link').href = lang.startsWith('zh') ? '/zh/' : '/en/';
+  </script>
+</body>
+</html>
