@@ -2,51 +2,94 @@
 /**
  * Giscus 评论组件
  *
- * 使用方法：
- * 1. 前往 https://giscus.app 配置你的 GitHub 仓库
- * 2. 获取以下参数并替换下方占位符：
- *    - data-repo: 你的 GitHub 用户名/仓库名
- *    - data-repo-id: 仓库 ID（在 giscus 页面获取）
- *    - data-category: 评论分类
- *    - data-category-id: 分类 ID
- * 3. 评论系统会自动根据文章路径匹配对应的讨论
+ * 配置步骤：
+ * 1. 确保仓库已启用 Discussions: Settings -> General -> Discussions ✅
+ * 2. 安装 Giscus App: https://github.com/apps/giscus
+ * 3. 前往 https://giscus.app 获取 repo-id 和 category-id
+ * 4. 更新下方的 data-repo-id 和 data-category-id
+ *
+ * 当前配置：
+ * - 仓库: chinadbo/AI-JOMO
+ * - 评论映射: pathname（根据文章路径自动匹配）
+ * - 主题: 透明深色（适配赛博朋克风格）
  */
+
+// 获取当前语言
+const pathname = Astro.url.pathname;
+const langMatch = pathname.match(/^\/(zh|en)(\/|$)/);
+const currentLang = langMatch ? langMatch[1] : 'zh';
 ---
 
 <div class="giscus-wrapper mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
+  <h3 class="font-display text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+    <svg class="w-5 h-5 text-cyber-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+    </svg>
+    {currentLang === 'zh' ? '评论' : 'Comments'}
+  </h3>
+
   <script
     is:inline
     src="https://giscus.app/client.js"
-    data-repo="GITHUB_USER/REPO_NAME"
-    data-repo-id="REPO_ID"
-    data-category="Announcements"
-    data-category-id="CATEGORY_ID"
+    data-repo="chinadbo/AI-JOMO"
+    data-repo-id="R_kgDOI7mXJg"
+    data-category="General"
+    data-category-id="DIC_kwDOI7mXJs4Cjb"
     data-mapping="pathname"
     data-strict="0"
     data-reactions-enabled="1"
     data-emit-metadata="0"
     data-input-position="bottom"
     data-theme="transparent_dark"
-    data-lang="zh-CN"
+    data-lang={currentLang === 'zh' ? 'zh-CN' : 'en'}
     data-loading="lazy"
     crossorigin="anonymous"
     async
   ></script>
+
+  <!-- Theme toggle support for Giscus -->
+  <script is:inline>
+    (function() {
+      // Listen for theme changes
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.attributeName === 'class') {
+            const isDark = document.documentElement.classList.contains('dark');
+            const iframe = document.querySelector('iframe.giscus-frame');
+            if (iframe) {
+              iframe.contentWindow?.postMessage(
+                { giscus: { setConfig: { theme: isDark ? 'transparent_dark' : 'light' } } },
+                'https://giscus.app'
+              );
+            }
+          }
+        });
+      });
+
+      observer.observe(document.documentElement, { attributes: true });
+    })();
+  </script>
 </div>
 
 <style>
   .giscus-wrapper {
-    /* 确保 Giscus 容器宽度合适 */
     min-height: 200px;
   }
 
-  /* 自定义 Giscus 主题颜色 - 匹配赛博朋克风格 */
+  /* Custom Giscus theming to match cyberpunk style */
   :global(.giscus) {
     --giscus-background: transparent;
-    --giscus-card-background: rgba(30, 41, 59, 0.5);
-    --giscus-border: #334155;
+    --giscus-card-background: rgba(15, 23, 42, 0.7);
+    --giscus-border: rgba(51, 65, 85, 0.5);
     --giscus-text-color: #e2e8f0;
     --giscus-link-color: #00f5ff;
-    --giscus-font-family: system-ui, -apple-system, sans-serif;
+    --giscus-font-family: 'Noto Sans SC', system-ui, sans-serif;
+  }
+
+  /* Light mode adjustments */
+  :global(html:not(.dark) .giscus) {
+    --giscus-card-background: rgba(255, 255, 255, 0.7);
+    --giscus-border: rgba(226, 232, 240, 0.5);
+    --giscus-text-color: #1e293b;
   }
 </style>
