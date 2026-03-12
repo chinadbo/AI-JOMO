@@ -1,13 +1,12 @@
 ---
 /**
- * Gear Review Detail Page
+ * Gear Review Detail Page (English)
  */
 
 import { getCollection, render } from 'astro:content';
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import Giscus from '../../components/Giscus.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Giscus from '../../../components/Giscus.astro';
 
-// Generate static paths for all gear articles
 export async function getStaticPaths() {
   const posts = await getCollection('gear');
   return posts.map((post) => ({
@@ -16,11 +15,9 @@ export async function getStaticPaths() {
   }));
 }
 
-// Get article content
 const { post } = Astro.props;
 const { Content } = await render(post);
 
-// Format date
 const formattedDate = post.data.pubDate.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'long',
@@ -30,9 +27,7 @@ const formattedDate = post.data.pubDate.toLocaleDateString('en-US', {
 
 <BaseLayout title={`${post.data.title} - Ioodu's Blog`} description={post.data.description}>
   <article class="max-w-4xl mx-auto px-4 py-12">
-    {/* Article Header */}
     <header class="mb-12">
-      {/* Categories */}
       <div class="flex flex-wrap gap-2 mb-4">
         {post.data.categories?.map((category) => (
           <span class="text-xs font-medium px-2 py-1 rounded bg-electric-blue/10 text-electric-blue uppercase tracking-wide">
@@ -46,31 +41,23 @@ const formattedDate = post.data.pubDate.toLocaleDateString('en-US', {
         )}
       </div>
 
-      {/* Title */}
       <h1 class="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6 leading-tight">
         {post.data.title}
       </h1>
 
-      {/* Description */}
       <p class="text-xl text-slate-600 dark:text-slate-400 mb-6">
         {post.data.description}
       </p>
 
-      {/* Meta Info */}
       <div class="flex items-center justify-between flex-wrap gap-4">
         <div class="flex items-center gap-4 text-sm text-slate-500">
-          <time datetime={post.data.pubDate.toISOString()}>
-            {formattedDate}
-          </time>
+          <time datetime={post.data.pubDate.toISOString()}>{formattedDate}</time>
         </div>
 
-        {/* Rating */}
         <div class="flex items-center gap-3">
           <div class="flex">
             {Array.from({ length: 5 }, (_, i) => (
-              <span class={i < post.data.rating ? 'text-yellow-400 text-xl' : 'text-slate-300 dark:text-slate-600 text-xl'}>
-                ★
-              </span>
+              <span class={i < post.data.rating ? 'text-yellow-400 text-xl' : 'text-slate-300 dark:text-slate-600 text-xl'}>★</span>
             ))}
           </div>
           <span class="text-sm text-slate-500">{post.data.rating}/5</span>
@@ -78,26 +65,15 @@ const formattedDate = post.data.pubDate.toLocaleDateString('en-US', {
       </div>
     </header>
 
-    {/* Cover Image (optional) */}
     {post.data.cover && (
       <div class="mb-12 rounded-xl overflow-hidden">
-        <img
-          src={post.data.cover}
-          alt={post.data.title}
-          class="w-full aspect-video object-cover"
-        />
+        <img src={post.data.cover} alt={post.data.title} class="w-full aspect-video object-cover" />
       </div>
     )}
 
-    {/* Purchase Link (optional) */}
     {post.data.purchaseLink && (
       <div class="mb-8 p-4 bg-electric-blue/10 rounded-xl">
-        <a
-          href={post.data.purchaseLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex items-center gap-2 text-electric-blue hover:underline font-medium"
-        >
+        <a href={post.data.purchaseLink} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-electric-blue hover:underline font-medium">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
@@ -107,16 +83,12 @@ const formattedDate = post.data.pubDate.toLocaleDateString('en-US', {
       </div>
     )}
 
-    {/* Tags */}
     <div class="flex flex-wrap gap-2 mb-8">
       {post.data.tags.map((tag) => (
-        <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-          #{tag}
-        </span>
+        <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">#{tag}</span>
       ))}
     </div>
 
-    {/* Article Content */}
     <div class="prose prose-slate dark:prose-invert prose-lg max-w-none
       prose-headings:text-slate-900 dark:prose-headings:text-white
       prose-a:text-electric-blue dark:prose-a:text-electric-blue
@@ -127,7 +99,6 @@ const formattedDate = post.data.pubDate.toLocaleDateString('en-US', {
       <Content />
     </div>
 
-    {/* Comments System */}
     <Giscus />
   </article>
 </BaseLayout>

@@ -1,0 +1,62 @@
+---
+/**
+ * Gear Review Detail (Chinese)
+ */
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Giscus from '../../../components/Giscus.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('gear');
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+---
+
+<BaseLayout title={`${post.data.title} - Ioodu's Blog`} description={post.data.description}>
+  <article class="max-w-4xl mx-auto px-4 py-12">
+    <header class="mb-12">
+      <div class="flex flex-wrap gap-2 mb-4">
+        {post.data.categories?.map((category) => <span class="text-xs font-medium px-2 py-1 rounded bg-electric-blue/10 text-electric-blue uppercase tracking-wide">{category}</span>)}
+        {post.data.brand && <span class="text-xs font-medium px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">{post.data.brand}</span>}
+      </div>
+      <h1 class="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6 leading-tight">{post.data.title}</h1>
+      <p class="text-xl text-slate-600 dark:text-slate-400 mb-6">{post.data.description}</p>
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div class="flex items-center gap-4 text-sm text-slate-500">
+          <time datetime={post.data.pubDate.toISOString()}>{formattedDate}</time>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex">
+            {Array.from({ length: 5 }, (_, i) => <span class={i < post.data.rating ? 'text-yellow-400 text-xl' : 'text-slate-300 dark:text-slate-600 text-xl'}>★</span>)}
+          </div>
+          <span class="text-sm text-slate-500">{post.data.rating}/5</span>
+        </div>
+      </div>
+    </header>
+
+    {post.data.cover && <div class="mb-12 rounded-xl overflow-hidden"><img src={post.data.cover} alt={post.data.title} class="w-full aspect-video object-cover" /></div>}
+
+    {post.data.purchaseLink && (
+      <div class="mb-8 p-4 bg-electric-blue/10 rounded-xl">
+        <a href={post.data.purchaseLink} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-electric-blue hover:underline font-medium">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+          在 {post.data.brand || 'Amazon'} 查看 {post.data.price && `(${post.data.price})`}
+        </a>
+      </div>
+    )}
+
+    <div class="flex flex-wrap gap-2 mb-8">
+      {post.data.tags.map((tag) => <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">#{tag}</span>)}
+    </div>
+
+    <div class="prose prose-slate dark:prose-invert prose-lg max-w-none prose-headings:text-slate-900 dark:prose-headings:text-white prose-a:text-electric-blue dark:prose-a:text-electric-blue prose-code:text-cyber-cyan prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:px-1 prose-code:rounded prose-pre:bg-slate-900 dark:prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-800 prose-blockquote:border-l-electric-blue prose-blockquote:bg-slate-50 dark:prose-blockquote:bg-slate-800/50 prose-blockquote:py-1 prose-img:rounded-xl">
+      <Content />
+    </div>
+
+    <Giscus />
+  </article>
+</BaseLayout>

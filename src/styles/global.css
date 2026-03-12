@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* Enable dark mode using class strategy */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* 赛博朋克配色主题 */
 @theme {
   /* 主色调 */
@@ -41,7 +44,7 @@ body {
 
 /* 代码块样式 */
 pre {
-  @apply bg-slate-900 dark:bg-slate-900 text-slate-100 rounded-lg p-4 overflow-x-auto;
+  @apply bg-slate-900 text-slate-100 rounded-lg p-4 overflow-x-auto;
 }
 
 code {

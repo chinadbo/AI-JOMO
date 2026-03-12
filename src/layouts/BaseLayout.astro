@@ -8,10 +8,20 @@ import { ClientRouter } from 'astro:transitions';
 import { SEO } from 'astro-seo';
 import ThemeToggle from '../components/ThemeToggle';
 import CommandPalette from '../components/CommandPalette';
+import { translations, type Language } from '../i18n';
 import '../styles/global.css';
 
 // Site configuration
 const siteUrl = 'https://your-domain.com';
+
+// Get language from URL path (e.g., /zh/about, /en/about)
+// Default to 'en' if no language prefix
+const pathname = Astro.url.pathname;
+const langMatch = pathname.match(/^\/(zh|en)(\/|$)/);
+const currentLang: Language = langMatch ? (langMatch[1] as Language) : 'en';
+
+// Get translations for current language
+const t = translations[currentLang];
 
 // Props interface
 interface Props {
@@ -29,16 +39,20 @@ interface Props {
 
 const { title, description = 'A blog about programming, architecture, AI, and gear reviews.', searchItems = [] } = Astro.props;
 
-// Navigation links
+// Navigation links with translations
 const navLinks = [
-  { href: '/tech', label: 'Tech' },
-  { href: '/gear', label: 'Gear' },
-  { href: '/about', label: 'About' },
+  { href: `/${currentLang}/tech`, label: t.nav.tech },
+  { href: `/${currentLang}/gear`, label: t.nav.gear },
+  { href: `/${currentLang}/about`, label: t.nav.about },
 ];
+
+// Update paths to include language prefix
+const homePath = `/${currentLang}`;
+const currentPath = pathname.replace(/^\/(zh|en)/, '') || '/';
 ---
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang={currentLang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -48,16 +62,16 @@ const navLinks = [
     <SEO
       title={title}
       description={description}
-      canonical={`${siteUrl}${Astro.url.pathname}`}
+      canonical={`${siteUrl}${pathname}`}
       openGraph={{
         basic: {
           title: title,
-          url: `${siteUrl}${Astro.url.pathname}`,
+          url: `${siteUrl}${pathname}`,
           type: 'website',
           image: `${siteUrl}/og-image.png`,
         },
         optional: {
-          locale: 'en_US',
+          locale: currentLang === 'zh' ? 'zh_CN' : 'en_US',
           siteName: "Ioodu's Blog",
         },
       }}
@@ -73,16 +87,32 @@ const navLinks = [
         document.documentElement.classList.add('dark');
       }
     </script>
+
+    <!-- Language detection for client-side -->
+    <script is:inline>
+      // Get language from URL or detect from browser
+      function getLang() {
+        const path = window.location.pathname;
+        const match = path.match(/^\/(zh|en)(\/|$)/);
+        if (match) return match[1];
+
+        const browserLang = navigator.language.toLowerCase();
+        if (browserLang.startsWith('zh')) return 'zh';
+        return 'en';
+      }
+
+      // Store current language
+      window.__lang__ = getLang();
+    </script>
   </head>
 
   <body class="min-h-screen flex flex-col">
     <!-- Glassmorphism Navbar -->
     <header class="fixed top-0 left-0 right-0 z-40 glass">
       <nav class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-        <!-- Left: Logo - Pure CSS Pixel Art -->
-        <a href="/" class="flex items-center gap-2 group">
+        <!-- Left: Logo -->
+        <a href={homePath} class="flex items-center gap-2 group">
           <div class="w-8 h-8 relative">
-            <!-- Pixel-style Logo - Robot Pattern -->
             <div class="absolute inset-0 grid grid-cols-4 grid-rows-4 gap-0.5">
               <div class="col-start-1 row-start-2 bg-cyber-cyan"></div>
               <div class="col-start-4 row-start-2 bg-cyber-cyan"></div>
@@ -110,14 +140,22 @@ const navLinks = [
           ))}
         </ul>
 
-        <!-- Right: Theme Toggle + Command Palette Trigger -->
-        <div class="flex items-center gap-3">
+        <!-- Right: Language Toggle + Theme Toggle + Command Palette -->
+        <div class="flex items-center gap-2">
+          <!-- Language Toggle -->
+          <a
+            href={currentLang === 'en' ? `/zh${currentPath === '/' ? '' : currentPath}` : `/en${currentPath === '/' ? '' : currentPath}`}
+            class="px-2 py-1 text-xs font-medium text-slate-500 hover:text-cyber-cyan transition-colors"
+          >
+            {currentLang === 'en' ? '中文' : 'EN'}
+          </a>
+
           <!-- Command Palette Trigger -->
           <button
             id="cmd-k-trigger"
             class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-cyber-cyan transition-colors text-sm"
           >
-            <span class="text-xs">Search</span>
+            <span class="text-xs">{currentLang === 'en' ? 'Search' : '搜索'}</span>
             <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">⌘K</kbd>
           </button>
 
@@ -138,13 +176,13 @@ const navLinks = [
         <div class="flex flex-col md:flex-row items-center justify-between gap-4">
           <!-- Copyright -->
           <p class="text-sm text-slate-500">
-            &copy; {new Date().getFullYear()} Ioodu. All rights reserved.
+            &copy; {new Date().getFullYear()} {t.footer.copyright}
           </p>
 
           <!-- Links -->
           <div class="flex items-center gap-4">
             <a
-              href="/rss.xml"
+              href={`/${currentLang}/rss.xml`}
               class="text-sm text-slate-500 hover:text-cyber-cyan transition-colors"
             >
               RSS
@@ -168,7 +206,6 @@ const navLinks = [
     <!-- Command Palette Trigger Script -->
     <script>
       document.getElementById('cmd-k-trigger')?.addEventListener('click', () => {
-        // Trigger CommandPalette to open
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
       });
     </script>

@@ -1,0 +1,42 @@
+---
+/**
+ * About Page (English)
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="About - Ioodu's Blog" description="About Ioodu - Software Engineer and Tech Enthusiast">
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-8 flex items-center gap-3">
+      <span class="text-cyber-cyan">#</span> About
+    </h1>
+
+    <div class="prose prose-slate dark:prose-invert prose-lg max-w-none">
+      <h2>About Me</h2>
+      <p>Hi! I'm Ioodu, a software engineer and tech enthusiast.</p>
+      <p>I specialize in backend architecture, TypeScript full-stack development, and AI applications. I love open source and geek aesthetics.</p>
+
+      <h2>Tech Stack</h2>
+      <ul>
+        <li><strong>Frontend:</strong> TypeScript, React, Astro, Vue</li>
+        <li><strong>Backend:</strong> Node.js, Go, Rust</li>
+        <li><strong>Database:</strong> PostgreSQL, Redis, MongoDB</li>
+        <li><strong>Cloud:</strong> AWS, Vercel, Cloudflare</li>
+      </ul>
+
+      <h2>Contact</h2>
+      <ul>
+        <li>GitHub: <a href="https://github.com/chinadbo" target="_blank" rel="noopener noreferrer">github.com/chinadbo</a></li>
+        <li>Email: hello@example.com</li>
+      </ul>
+
+      <h2>About This Blog</h2>
+      <p>
+        This blog is built with Astro + React + Tailwind CSS, deployed on Vercel.
+      </p>
+      <p>
+        The theme features a cyberpunk aesthetic with cyan (#00f5ff) and electric blue (#3b82f6) as primary colors.
+      </p>
+    </div>
+  </div>
+</BaseLayout>
