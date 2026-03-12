@@ -1,0 +1,347 @@
+---
+title: "Rust for JavaScript Developers: A Practical Guide"
+description: "Transition from JavaScript to Rust. Learn memory safety, ownership, and why companies like Discord and Cloudflare are rewriting performance-critical code in Rust."
+pubDate: 2024-03-10
+updatedDate: 2024-03-12
+tags:
+  - Rust
+  - JavaScript
+  - Systems Programming
+categories:
+  - Programming
+  - Systems
+cover: ""
+readingTime: 20
+---
+
+## Why Rust Matters for JS Developers
+
+As JavaScript developers, we rarely think about memory management. Node.js and V8 handle everything. But when you need:
+
+- **Zero-cost abstractions**
+- **Predictable performance**
+- **Memory safety without garbage collection**
+- **Concurrency without data races**
+
+Rust becomes irresistible. Discord, Cloudflare, and Shopify have all rewritten performance-critical components in Rust.
+
+## The Ownership Model
+
+This is Rust's killer feature. It eliminates entire classes of bugs at compile time.
+
+### JS: Garbage Collection
+
+```javascript
+function createUser(name) {
+  const user = { name, createdAt: new Date() };
+  return user;
+} // JS garbage collector frees memory automatically
+```
+
+### Rust: Ownership
+
+```rust
+fn create_user(name: String) -> String {
+    let user = User {
+        name,
+        created_at: chrono::Utc::now(),
+    };
+    user.name // Ownership moves to caller
+}
+```
+
+**Three Rules**:
+1. Each value has exactly one owner
+2. When owner goes out of scope, value is dropped
+3. You can have either one mutable reference OR many immutable references
+
+## Pattern 1: References & Borrowing
+
+```rust
+fn main() {
+    let s1 = String::from("hello");
+    let len = calculate_length(&s1); // Borrow, don't take ownership
+    println!("The length of '{}' is {}", s1, len); // s1 still valid!
+}
+
+fn calculate_length(s: &String) -> usize {
+    s.len()
+} // s goes out of scope, but doesn't drop the String
+```
+
+Compare to JavaScript:
+
+```javascript
+function calculateLength(s) { // s is a reference (like pointer)
+    return s.length;
+}
+const s1 = "hello";
+const len = calculateLength(s1);
+console.log(s1); // s1 still valid - JavaScript copies primitives
+```
+
+## Pattern 2: Structs & Methods
+
+```rust
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+impl Rectangle {
+    // &self means immutable borrow
+    fn area(&self) -> u32 {
+        self.width * self.height
+    }
+
+    // &mut self means mutable borrow
+    fn scale(&mut self, factor: u32) {
+        self.width *= factor;
+        self.height *= factor;
+    }
+
+    // Associated function (like static method)
+    fn square(size: u32) -> Self {
+        Self {
+            width: size,
+            height: size,
+        }
+    }
+}
+
+fn main() {
+    let rect = Rectangle { width: 30, height: 50 };
+    println!("Area: {}", rect.area());
+
+    let sq = Rectangle::square(10);
+}
+```
+
+## Pattern 3: Enums & Pattern Matching
+
+Rust's enums are incredibly powerful:
+
+```rust
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+enum HttpResponse {
+    Status(u16),
+    Redirect(String),
+    Body(Vec<u8>),
+    Error(String),
+}
+
+fn handle_response(response: HttpResponse) -> String {
+    match response {
+        HttpResponse::Status(code) => format!("Status: {}", code),
+        HttpResponse::Redirect(url) => format!("Redirecting to {}", url),
+        HttpResponse::Body(data) => format!("Got {} bytes", data.len()),
+        HttpResponse::Error(msg) => format!("Error: {}", msg),
+    }
+}
+```
+
+**With Option for null safety:**
+
+```rust
+fn find_user(id: u64) -> Option<User> {
+    // Some(user) or None
+}
+
+fn main() {
+    let user = find_user(123);
+
+    // Pattern matching with if let
+    if let Some(u) = user {
+        println!("Found: {}", u.name);
+    }
+
+    // Or using unwrap_or for defaults
+    let name = user
+        .map(|u| u.name)
+        .unwrap_or_else(|| "Unknown".to_string());
+}
+```
+
+## Pattern 4: Error Handling
+
+No exceptions. No try-catch. Just Results:
+
+```rust
+use std::fs::File;
+use std::io::{self, Read};
+
+fn read_file(path: &str) -> Result<String, io::Error> {
+    let mut file = File::open(path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    Ok(contents)
+}
+
+fn main() {
+    match read_file("config.txt") {
+        Ok(contents) => println!("Config: {}", contents),
+        Err(e) => eprintln!("Failed to read: {}", e),
+    }
+
+    // Or use unwrap_or_else for recovery
+    let config = read_file("config.txt")
+        .unwrap_or_else(|_| String::from("default_config"));
+}
+```
+
+**The `?` Operator** - propagate errors elegantly:
+
+```rust
+fn complex_operation() -> Result<FinalType, Error> {
+    let data = fetch_data()?;      // Early return on error
+    let parsed = parse(data)?;     // Keep propagating
+    let validated = validate(parsed)?;
+    Ok(validated)
+}
+```
+
+## Pattern 5: Lifetimes
+
+Tell the compiler how references relate:
+
+```rust
+// This function returns a reference, so we need to specify
+// that the returned reference lives as long as the input
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    if x.len() > y.len() { x } else { y }
+}
+
+fn main() {
+    let string1 = String::from("long string is long");
+    let result;
+    {
+        let string2 = String::from("xyz");
+        result = longest(&string1, &string2);
+    }
+    // println!("{}", result); // ERROR! result doesn't live long enough
+}
+```
+
+## Pattern 6: Traits (Like Interfaces)
+
+```rust
+trait Serializable {
+    fn serialize(&self) -> String;
+}
+
+impl Serializable for User {
+    fn serialize(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+}
+
+fn save_to_file<T: Serializable>(item: T, path: &str) {
+    let data = item.serialize();
+    std::fs::write(path, data).unwrap();
+}
+```
+
+**With trait bounds:**
+
+```rust
+fn print_debug<T: std::fmt::Debug>(value: T) {
+    println!("{:?}", value);
+}
+
+// Or using where clause
+fn process<T, U>(t: T, u: U) -> String
+where
+    T: Clone + Default,
+    U: Serializable,
+{
+    // ...
+}
+```
+
+## Pattern 7: Concurrency
+
+Fearless parallelism:
+
+```rust
+use std::thread;
+
+fn main() {
+    let handles: Vec<_> = (0..10)
+        .map(|i| {
+            thread::spawn(move || {
+                let result = expensive_computation(i);
+                result
+            })
+        })
+        .collect();
+
+    let results: Vec<_> = handles
+        .into_iter()
+        .map(|h| h.join().unwrap())
+        .collect();
+
+    println!("Results: {:?}", results);
+}
+```
+
+**With channels (like Go):**
+
+```rust
+use std::sync::mpsc;
+
+fn main() {
+    let (tx, rx) = mpsc::channel();
+
+    thread::spawn(move || {
+        tx.send("Message from thread".to_string()).unwrap();
+    });
+
+    let received = rx.recv().unwrap();
+    println!("Got: {}", received);
+}
+```
+
+## From JS to Rust: A Quick Reference
+
+| JavaScript | Rust |
+|------------|------|
+| `let x = 5` | `let x = 5;` |
+| `const arr = []` | `let arr: Vec<T> = Vec::new();` |
+| `function foo(x: Type)` | `fn foo(x: Type) -> ReturnType` |
+| `class extends` | `struct` + `impl` |
+| `try/catch` | `Result<T, E>` + `?` |
+| `null`/`undefined` | `Option<T>` |
+| `async/await` | `async`/`await` (with Tokio) |
+| `Promise.all` | `futures::join_all` |
+
+## Getting Started
+
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Create project
+cargo new my_project
+cd my_project
+
+# Run
+cargo run
+
+# Add dependencies
+cargo add serde_json
+cargo add tokio --features full
+```
+
+## Conclusion
+
+Rust's learning curve is steep, but the compiler becomes your ally. Once you internalize ownership and borrowing, you'll write faster, safer code. Start small—rewrite a utility function, then scale up.
+
+The JavaScript/Rust combo is powerful: JS for rapid development and UI, Rust for performance-critical backend services.
+
+---
+
+*Next: Building type-safe APIs with Rust and TypeScript*

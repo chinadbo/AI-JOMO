@@ -3,8 +3,8 @@ import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 
 /**
- * 技术文章集合
- * 用于编程、架构、AI等技术类内容
+ * Tech Articles Collection
+ * Programming, Architecture, AI, and more
  */
 const techCollection = defineCollection({
   loader: glob({ pattern: "**/*.mdx", base: "./src/content/tech" }),
@@ -12,14 +12,19 @@ const techCollection = defineCollection({
     title: z.string(),
     description: z.string(),
     pubDate: z.coerce.date(),
+    updatedDate: z.coerce.date().optional(),
     tags: z.array(z.string()),
+    categories: z.array(z.string()).default(["general"]),
     cover: z.string().optional(),
+    draft: z.boolean().default(false),
+    readingTime: z.number().optional(), // in minutes
+    author: z.string().default("Ioodu"),
   }),
 });
 
 /**
- * 装备文章集合
- * 用于数码、EDC、书影音等生活装备类内容
+ * Gear Reviews Collection
+ * EDC, Gadgets, Books, Movies, Music
  */
 const gearCollection = defineCollection({
   loader: glob({ pattern: "**/*.mdx", base: "./src/content/gear" }),
@@ -27,10 +32,15 @@ const gearCollection = defineCollection({
     title: z.string(),
     description: z.string(),
     pubDate: z.coerce.date(),
+    updatedDate: z.coerce.date().optional(),
     tags: z.array(z.string()),
+    categories: z.array(z.string()).default(["edc"]),
     cover: z.string().optional(),
     rating: z.number().min(1).max(5),
     purchaseLink: z.string().optional(),
+    price: z.string().optional(),
+    brand: z.string().optional(),
+    draft: z.boolean().default(false),
   }),
 });
 

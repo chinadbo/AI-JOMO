@@ -1,17 +1,17 @@
 ---
 /**
- * 技术文章列表页
+ * Tech Articles List Page
  */
 
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostCard from '../../components/PostCard.astro';
 
-// 获取所有技术文章，按日期排序
+// Get all tech articles, sorted by date
 const posts = (await getCollection('tech'))
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
-// 构建搜索数据
+// Build search data
 const searchItems = posts.map((post) => ({
   title: post.data.title,
   url: `/tech/${post.id}`,
@@ -22,14 +22,14 @@ const searchItems = posts.map((post) => ({
 }));
 ---
 
-<BaseLayout title="技术文章 - AI Jomo" description="技术文章列表 - 编程、架构、AI" searchItems={searchItems}>
+<BaseLayout title="Tech Articles - Ioodu's Blog" description="Technical articles on programming, architecture, and AI" searchItems={searchItems}>
   <div class="max-w-6xl mx-auto px-4 py-12">
     <div class="mb-12">
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
-        <span class="text-cyber-cyan">#</span> 技术文章
+        <span class="text-cyber-cyan">#</span> Tech Articles
       </h1>
       <p class="text-slate-600 dark:text-slate-400">
-        探索编程、架构与 AI 的无限可能
+        Exploring programming, architecture, and the future of technology
       </p>
     </div>
 
@@ -44,14 +44,15 @@ const searchItems = posts.map((post) => ({
             cover={post.data.cover}
             url={`/tech/${post.id}`}
             category="tech"
+            readingTime={post.data.readingTime}
           />
         ))}
       </div>
     ) : (
       <div class="text-center py-20">
-        <p class="text-slate-500 mb-4">暂无技术文章</p>
+        <p class="text-slate-500 mb-4">No articles yet</p>
         <a href="/" class="text-cyber-cyan hover:underline">
-          返回首页
+          Back to Home
         </a>
       </div>
     )}

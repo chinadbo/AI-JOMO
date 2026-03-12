@@ -1,17 +1,17 @@
 ---
 /**
- * 装备文章列表页
+ * Gear Reviews List Page
  */
 
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostCard from '../../components/PostCard.astro';
 
-// 获取所有装备文章，按日期排序
+// Get all gear articles, sorted by date
 const posts = (await getCollection('gear'))
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
-// 构建搜索数据
+// Build search data
 const searchItems = posts.map((post) => ({
   title: post.data.title,
   url: `/gear/${post.id}`,
@@ -22,14 +22,14 @@ const searchItems = posts.map((post) => ({
 }));
 ---
 
-<BaseLayout title="装备分享 - AI Jomo" description="装备分享列表 - 数码、EDC、书影音" searchItems={searchItems}>
+<BaseLayout title="Gear Reviews - Ioodu's Blog" description="EDC gear, gadgets, and product reviews" searchItems={searchItems}>
   <div class="max-w-6xl mx-auto px-4 py-12">
     <div class="mb-12">
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
-        <span class="text-electric-blue">#</span> 装备分享
+        <span class="text-electric-blue">#</span> Gear Reviews
       </h1>
       <p class="text-slate-600 dark:text-slate-400">
-        数码装备、EDC 装备与书影音推荐
+        EDC, gadgets, and product reviews
       </p>
     </div>
 
@@ -50,9 +50,9 @@ const searchItems = posts.map((post) => ({
       </div>
     ) : (
       <div class="text-center py-20">
-        <p class="text-slate-500 mb-4">暂无装备分享</p>
+        <p class="text-slate-500 mb-4">No gear reviews yet</p>
         <a href="/" class="text-electric-blue hover:underline">
-          返回首页
+          Back to Home
         </a>
       </div>
     )}

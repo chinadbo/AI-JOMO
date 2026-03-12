@@ -1,7 +1,7 @@
 ---
 /**
- * 文章卡片组件
- * 展示文章标题、描述、标签、发布日期，hover 时有青色发光效果
+ * Article Card Component
+ * Displays title, description, tags, and date with hover glow effect
  */
 
 interface Props {
@@ -12,21 +12,22 @@ interface Props {
   cover?: string;
   url: string;
   category: 'tech' | 'gear';
-  rating?: number; // 仅 gear 类别使用
+  rating?: number;
+  readingTime?: number;
 }
 
-const { title, description, pubDate, tags, cover, url, category, rating } = Astro.props;
+const { title, description, pubDate, tags, cover, url, category, rating, readingTime } = Astro.props;
 
-// 格式化日期
-const formattedDate = pubDate.toLocaleDateString('zh-CN', {
+// Format date
+const formattedDate = pubDate.toLocaleDateString('en-US', {
   year: 'numeric',
-  month: 'long',
+  month: 'short',
   day: 'numeric',
 });
 ---
 
 <article class="group relative flex flex-col h-full bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-l-4 hover:border-l-cyber-cyan transition-all duration-300 hover:shadow-lg hover:shadow-cyber-cyan/10">
-  {/* 封面图（可选） */}
+  {/* Cover Image (optional) */}
   {cover && (
     <a href={url} class="block aspect-video overflow-hidden">
       <img
@@ -37,12 +38,12 @@ const formattedDate = pubDate.toLocaleDateString('zh-CN', {
     </a>
   )}
 
-  {/* 内容区域 */}
+  {/* Content Area */}
   <div class="flex flex-col flex-1 p-5">
-    {/* 标签 */}
+    {/* Category & Tags */}
     <div class="flex flex-wrap gap-2 mb-3">
       <span class="text-xs font-medium px-2 py-1 rounded bg-cyber-cyan/10 text-cyber-cyan">
-        {category === 'tech' ? '技术' : '装备'}
+        {category === 'tech' ? 'Tech' : 'Gear'}
       </span>
       {tags.slice(0, 2).map((tag) => (
         <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
@@ -51,26 +52,34 @@ const formattedDate = pubDate.toLocaleDateString('zh-CN', {
       ))}
     </div>
 
-    {/* 标题 */}
+    {/* Title */}
     <a href={url} class="block">
       <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100 group-hover:text-cyber-cyan transition-colors line-clamp-2 mb-2">
         {title}
       </h3>
     </a>
 
-    {/* 描述 */}
+    {/* Description */}
     <p class="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-4 flex-1">
       {description}
     </p>
 
-    {/* 底部信息 */}
+    {/* Footer Info */}
     <div class="flex items-center justify-between mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
-      {/* 日期 */}
-      <time class="text-xs text-slate-500" datetime={pubDate.toISOString()}>
-        {formattedDate}
-      </time>
+      {/* Date & Reading Time */}
+      <div class="flex items-center gap-2 text-xs text-slate-500">
+        <time datetime={pubDate.toISOString()}>
+          {formattedDate}
+        </time>
+        {readingTime && (
+          <>
+            <span>·</span>
+            <span>{readingTime} min read</span>
+          </>
+        )}
+      </div>
 
-      {/* 评分（仅 gear 类别） */}
+      {/* Rating (gear category only) */}
       {rating && (
         <div class="flex items-center gap-1">
           {Array.from({ length: 5 }, (_, i) => (
@@ -85,7 +94,7 @@ const formattedDate = pubDate.toLocaleDateString('zh-CN', {
 </article>
 
 <style>
-  /* 限制显示行数 */
+  /* Line clamp for description */
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;

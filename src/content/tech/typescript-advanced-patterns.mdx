@@ -1,0 +1,275 @@
+---
+title: "TypeScript Advanced Type Patterns Every Senior Developer Should Know"
+description: "Master TypeScript's type system with advanced patterns including conditional types, mapped types, template literals, and real-world architectural patterns."
+pubDate: 2024-03-15
+updatedDate: 2024-03-20
+tags:
+  - TypeScript
+  - JavaScript
+  - Programming
+categories:
+  - Programming
+  - Architecture
+cover: ""
+readingTime: 15
+---
+
+## Introduction
+
+TypeScript's type system is remarkably powerful. Beyond basic types, it offers advanced features that enable sophisticated type-level programming. This article explores patterns I use daily as a senior engineer to build bulletproof APIs and maintainable codebases.
+
+## 1. Discriminated Unions & Type Guards
+
+The foundation of type-safe state management:
+
+```typescript
+type RequestState<T> =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: Error };
+
+function handleState<T>(state: RequestState<T>) {
+  switch (state.status) {
+    case 'idle':
+      return 'Waiting to start...';
+    case 'loading':
+      return 'Fetching data...';
+    case 'success':
+      return `Got: ${state.data}`; // TypeScript knows data exists
+    case 'error':
+      return `Error: ${state.error.message}`; // TypeScript knows error exists
+  }
+}
+```
+
+**Key Insight**: Discriminated unions let TypeScript narrow types automatically within switch/if statements.
+
+## 2. Template Literal Types
+
+Build type-safe APIs with string manipulation:
+
+```typescript
+// API Response Types
+type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type Endpoint = '/users' | '/posts' | '/comments';
+
+type APIRoute = `${HTTPMethod} ${Endpoint}`;
+
+// Event System
+type EventName = 'click' | 'focus' | 'blur';
+type Handler = `on${Capitalize<EventName>}`;
+
+type EventHandlers = {
+  [K in Handler]: () => void;
+};
+
+// Results in: { onClick: () => void; onFocus: () => void; onBlur: () => void; }
+```
+
+## 3. Mapped Types with Modifiers
+
+Transform types systematically:
+
+```typescript
+// Make all properties optional
+type Partial<T> = {
+  [P in keyof T]?: T[P];
+};
+
+// Make all properties readonly
+type Readonly<T> = {
+  readonly [P in keyof T]: T[P];
+};
+
+// Remove specific properties
+type Omit<T, K extends keyof T> = {
+  [P in Exclude<keyof T, K>]: T[P];
+};
+
+// Real-world: Make API response nullable
+type Nullable<T> = {
+  [P in keyof T]: T[P] | null;
+};
+
+type UserResponse = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type NullableUser = Nullable<UserResponse>;
+// { id: string | null; name: string | null; email: string | null; }
+```
+
+## 4. Conditional Types
+
+Type-level programming with inference:
+
+```typescript
+// Extract return type of a function
+type ReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
+
+// Extract parameter types
+type Parameters<T> = T extends (...args: infer P) => any ? P : never;
+
+// Flatten nested arrays
+type Flatten<T> = T extends (infer U)[] ? U : T;
+
+type Nested = string[][];
+type Flat = Flatten<Nested>; // string[]
+
+// Real-world: Extract array element type
+type ArrayElement<T> = T extends readonly (infer U)[] ? U : never;
+
+// Practical: Get element from tuple
+type First<T extends any[]> = T extends [infer F, ...any[]] ? F : never;
+type Last<T extends any[]> = T extends [...any[], infer L] ? L : never;
+
+type Tuple = [string, number, boolean];
+type FirstEl = First<Tuple>;   // string
+type LastEl = Last<Tuple>;     // boolean
+```
+
+## 5. The Builder Pattern with TypeScript
+
+Type-safe fluent interfaces:
+
+```typescript
+class QueryBuilder<T extends string = ''> {
+  private query: string = T;
+
+  select<K extends string>(fields: K[]): QueryBuilder<`SELECT ${K} FROM ${T}`> {
+    return this as any;
+  }
+
+  from<K extends string>(table: K): QueryBuilder<`SELECT * FROM ${K}`> {
+    return this as any;
+  }
+
+  where(condition: string): this {
+    this.query += ` WHERE ${condition}`;
+    return this;
+  }
+
+  build(): string {
+    return this.query;
+  }
+}
+
+// Usage with full type safety
+const query = new QueryBuilder()
+  .from('users')
+  .where('age > 18')
+  .build();
+// TypeScript tracks the query structure!
+```
+
+## 6..brand() Pattern for Type Branding
+
+Create nominal types from primitives:
+
+```typescript
+type Brand<T, B> = T & { __brand: B };
+
+type UserID = Brand<string, 'UserID'>;
+type PostID = Brand<string, 'PostID'>;
+
+function getUserById(id: UserID): User { /* ... */ }
+function getPostById(id: PostID): Post { /* ... */ }
+
+const userId = 'abc123' as UserID;
+const postId = 'xyz789' as PostID;
+
+getUserById(userId);  // ✅ Works
+getUserById(postId);   // ❌ TypeScript error! Can't mix UserID and PostID
+```
+
+## 7. Deep Partial & Required
+
+Recursive type transformations:
+
+```typescript
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+type DeepRequired<T> = {
+  [P in keyof T]-?: T[P] extends object ? DeepRequired<T[P]> : T[P];
+};
+
+type Config = {
+  server: {
+    port: number;
+    host: string;
+    ssl: {
+      enabled: boolean;
+      cert: string;
+    };
+  };
+  database: {
+    url: string;
+  };
+};
+
+type PartialConfig = DeepPartial<Config>;
+// All nested properties become optional
+
+type RequiredConfig = DeepRequired<PartialConfig>;
+// All properties become required again
+```
+
+## 8. Type-Safe Event Emitter
+
+Practical real-world pattern:
+
+```typescript
+type EventMap = {
+  user:login: { userId: string; timestamp: Date };
+  user:logout: { userId: string };
+  data:sync: { records: number };
+  error: [Error, string?]; // Tuple for multiple args
+};
+
+type EventKeys = keyof EventMap;
+type EventReceiver<K extends EventKeys> = EventMap[K];
+
+class Emitter<Events extends Record<string, any>> {
+  private listeners: {
+    [K in keyof Events]?: Array<(data: Events[K]) => void>;
+  } = {};
+
+  on<K extends keyof Events>(event: K, fn: (data: Events[K]) => void): void {
+    (this.listeners[event] ??= []).push(fn);
+  }
+
+  emit<K extends keyof Events>(event: K, data: Events[K]): void {
+    (this.listeners[event] ??= []).forEach(fn => fn(data));
+  }
+}
+
+const emitter = new Emitter<EventMap>();
+
+emitter.on('user:login', ({ userId, timestamp }) => {
+  console.log(`${userId} logged in at ${timestamp}`);
+});
+
+emitter.emit('user:login', {
+  userId: '123',
+  timestamp: new Date()
+});
+```
+
+## Conclusion
+
+These patterns form the backbone of TypeScript's most powerful features. Master them, and you'll:
+
+- **Catch bugs at compile time** rather than runtime
+- **Create self-documenting APIs** that are impossible to misuse
+- **Build maintainable systems** that scale with your team
+
+The key is understanding that TypeScript's type system is a full programming language at the type level. Think in types, and the compiler will work for you.
+
+---
+
+*Next in this series: I'll explore advanced Rust patterns for systems programming.*

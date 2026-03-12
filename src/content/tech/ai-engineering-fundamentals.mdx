@@ -1,0 +1,407 @@
+---
+title: "AI Engineering: Building Production-Ready LLM Applications"
+description: "From prompt engineering to production deployment: a comprehensive guide to building robust AI-powered applications that scale."
+pubDate: 2024-03-05
+updatedDate: 2024-03-08
+tags:
+  - AI
+  - LLM
+  - Engineering
+  - Machine Learning
+categories:
+  - AI/ML
+  - Engineering
+cover: ""
+readingTime: 25
+---
+
+## The AI Engineering Paradigm
+
+We're witnessing a fundamental shift in software development. Traditional programming requires specifying exact logic; AI engineering requires specifying outcomes and letting models figure out the implementation.
+
+This guide covers building production-ready AI applications that are reliable, scalable, and maintainable.
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     User Interface                          │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│                   API Layer (FastAPI/Next.js)              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐    │
+│  │ Rate Limit  │  │   Auth      │  │  Cache (Redis)  │    │
+│  └─────────────┘  └─────────────┘  └─────────────────┘    │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│                 Application Layer                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐    │
+│  │   Prompt    │  │    Tool     │  │   Memory        │    │
+│  │  Manager    │  │   Executor  │  │   Manager       │    │
+│  └─────────────┘  └─────────────┘  └─────────────────┘    │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│                   Model Layer                               │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │          LLM (OpenAI/Anthropic/Custom)              │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 1. Prompt Engineering Patterns
+
+### The RAG Pattern (Retrieval Augmented Generation)
+
+```typescript
+interface RAGPipeline {
+  // 1. Embed user query
+  embedQuery(query: string): Promise<number[]>;
+
+  // 2. Search vector database
+  search(embedding: number[], k: number): Promise<Document[]>;
+
+  // 3. Build context
+  buildContext(docs: Document[]): string;
+
+  // 4. Generate response
+  generate(context: string, query: string): Promise<string>;
+}
+
+class ProductionRAG implements RAGPipeline {
+  constructor(
+    private embeddings: EmbeddingsClient,
+    private vectorStore: VectorStore,
+    private llm: LLMClient
+  ) {}
+
+  async query(userQuery: string): Promise<string> {
+    const queryEmbedding = await this.embeddings.embed(userQuery);
+    const relevantDocs = await this.vectorStore.similaritySearch(
+      queryEmbedding,
+      k: 5
+    );
+
+    const context = this.buildContext(relevantDocs);
+    const systemPrompt = `You are a helpful assistant.
+Use the following context to answer questions:
+
+${context}`;
+
+    return this.llm.chat([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userQuery }
+    ]);
+  }
+}
+```
+
+### Chain of Thought Reasoning
+
+```python
+# Enable step-by-step reasoning
+COT_PROMPT = """Solve this problem step by step. Show your reasoning.
+
+Question: {question}
+
+Let's think step by step:"""
+
+def solve_with_cot(question: str) -> str:
+    response = openai.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": COT_PROMPT},
+            {"role": "user", "content": question}
+        ],
+        temperature=0.7,
+        max_tokens=1000
+    )
+    return response.choices[0].message.content
+```
+
+## 2. Tool Use & Function Calling
+
+Modern LLMs can use tools. Here's how to implement it:
+
+```typescript
+interface Tool {
+  name: string;
+  description: string;
+  parameters: z.ZodSchema;
+  execute: (args: any) => Promise<any>;
+}
+
+const tools: Tool[] = [
+  {
+    name: "search_codebase",
+    description: "Search for code in the repository",
+    parameters: z.object({
+      query: z.string(),
+      file_types: z.array(z.string()).optional()
+    }),
+    async execute({ query, file_types }) {
+      return searchCode(query, file_types);
+    }
+  },
+  {
+    name: "run_tests",
+    description: "Run test suite",
+    parameters: z.object({
+      pattern: z.string().optional(),
+      coverage: z.boolean().default(false)
+    }),
+    async execute({ pattern, coverage }) {
+      return runTestSuite({ pattern, coverage });
+    }
+  }
+];
+
+class ToolExecutor {
+  async executeWithTools(prompt: string): Promise<string> {
+    const response = await this.llm.chat([
+      { role: 'user', content: prompt }
+    ], {
+      tools: tools.map(t => ({
+        type: 'function',
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters
+        }
+      })
+    });
+
+    const toolCalls = response.tool_calls;
+    if (!toolCalls) return response.content;
+
+    // Execute all tools in parallel
+    const results = await Promise.all(
+      toolCalls.map(call => {
+        const tool = tools.find(t => t.name === call.function.name);
+        const args = JSON.parse(call.function.arguments);
+        return tool!.execute(args);
+      })
+    );
+
+    // Feed results back to LLM
+    return this.llm.chat([
+      ...messages,
+      ...toolCalls.map((call, i) => ({
+        role: 'tool' as const,
+        tool_call_id: call.id,
+        content: JSON.stringify(results[i])
+      })),
+      { role: 'user', content: 'Continue with the results.' }
+    ]);
+  }
+}
+```
+
+## 3. Memory Management
+
+### Conversation Context
+
+```typescript
+class ConversationMemory {
+  private messages: Message[] = [];
+  private maxTokens: number;
+
+  constructor(maxTokens: number = 4000) {
+    this.maxTokens = maxTokens;
+  }
+
+  add(message: Message): void {
+    this.messages.push(message);
+    this.prune();
+  }
+
+  getMessages(): Message[] {
+    return [...this.messages];
+  }
+
+  private prune(): void {
+    let tokenCount = this.messages.reduce(
+      (sum, m) => sum + estimateTokens(m.content), 0
+    );
+
+    while (tokenCount > this.maxTokens && this.messages.length > 1) {
+      const removed = this.messages.shift();
+      tokenCount -= estimateTokens(removed!.content);
+    }
+  }
+}
+```
+
+### Persistent Memory with Vector Store
+
+```typescript
+class LongTermMemory {
+  constructor(
+    private vectorStore: VectorStore,
+    private embeddings: EmbeddingsClient
+  ) {}
+
+  async remember(key: string, value: string): Promise<void> {
+    const embedding = await this.embeddings.embed(value);
+    await this.vectorStore.upsert({
+      id: key,
+      embedding,
+      payload: { key, value, timestamp: Date.now() }
+    });
+  }
+
+  async recall(query: string, topK: number = 3): Promise<string[]> {
+    const queryEmbedding = await this.embeddings.embed(query);
+    const results = await this.vectorStore.search(
+      queryEmbedding,
+      topK
+    );
+    return results.map(r => r.payload.value);
+  }
+}
+```
+
+## 4. Production Considerations
+
+### Rate Limiting & Cost Control
+
+```typescript
+class RateLimitedClient {
+  private queue: Array<() => Promise<any>> = [];
+  private processing = false;
+
+  constructor(
+    private client: LLMClient,
+    private maxPerMinute: number = 60,
+    private maxPerDay: number = 10000
+  ) {
+    // Track usage
+    this.usage = {
+      minute: [],
+      day: []
+    };
+  }
+
+  async chat(messages: Message[]): Promise<Response> {
+    this.checkLimits();
+
+    const waitForSlot = async () => {
+      while (this.usage.minute.length >= this.maxPerMinute) {
+        await sleep(1000);
+      }
+    };
+
+    await waitForSlot();
+
+    const now = Date.now();
+    this.usage.minute.push(now);
+    this.usage.day.push(now);
+
+    // Clean old entries
+    this.usage.minute = this.usage.minute.filter(
+      t => now - t < 60000
+    );
+
+    return this.client.chat(messages);
+  }
+}
+```
+
+### Caching Strategies
+
+```typescript
+class CachedLLMClient {
+  private cache: Redis;
+
+  async chat(messages: Message[]): Promise<Response> {
+    const cacheKey = this.hashMessages(messages);
+
+    const cached = await this.cache.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const response = await this.client.chat(messages);
+
+    // Cache successful responses for 1 hour
+    await this.cache.setex(cacheKey, 3600, JSON.stringify(response));
+
+    return response;
+  }
+}
+```
+
+## 5. Evaluation & Monitoring
+
+### A/B Testing Prompts
+
+```typescript
+class PromptExperiment {
+  private metrics: MetricClient;
+
+  async runExperiment(
+    experimentId: string,
+    variants: Map<string, (input: Input) => Promise<Output>>
+  ): Promise<ExperimentResult> {
+    const trafficSplit = this.getTrafficSplit(experimentId);
+
+    const results = await Promise.all(
+      Array.from(variants.entries()).map(
+        async ([variant, fn]) => {
+          const inputs = this.getTestInputs(variant);
+          const outputs = await Promise.all(
+            inputs.map(fn)
+          );
+          return {
+            variant,
+            outputs,
+            metrics: this.evaluate(outputs)
+          };
+        }
+      )
+    );
+
+    return this.statisticalAnalysis(results);
+  }
+}
+```
+
+### Key Metrics to Track
+
+```typescript
+const METRICS = {
+  // Quality metrics
+  accuracy: 'Correct answers / Total questions',
+  relevance: 'Response relevance to user query',
+  coherence: 'Logical flow and consistency',
+
+  // Performance metrics
+  latency: 'Time to first token',
+  throughput: 'Tokens per second',
+  cost: 'Cost per 1K tokens',
+
+  // Reliability metrics
+  errorRate: 'Failed requests / Total requests',
+  timeoutRate: 'Timeouts / Total requests',
+  retryRate: 'Retries / Total requests'
+};
+```
+
+## Conclusion
+
+Building production AI applications requires the same rigor as traditional software engineering—plus understanding of LLM behavior, prompt engineering, and new failure modes.
+
+Key takeaways:
+1. **Start with RAG** for knowledge-intensive tasks
+2. **Use tools** to extend LLM capabilities
+3. **Implement proper memory** for conversational apps
+4. **Always have fallback** when LLMs fail
+5. **Measure everything** in production
+
+The future is AI-augmented software. Build it right.
+
+---
+
+*Want more? Follow for deep dives into specific AI engineering topics.*

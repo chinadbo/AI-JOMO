@@ -1,13 +1,13 @@
 ---
 /**
- * 技术文章详情页
+ * Tech Article Detail Page
  */
 
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Giscus from '../../components/Giscus.astro';
 
-// 生成所有技术文章的静态路径
+// Generate static paths for all tech articles
 export async function getStaticPaths() {
   const posts = await getCollection('tech');
   return posts.map((post) => ({
@@ -16,48 +16,83 @@ export async function getStaticPaths() {
   }));
 }
 
-// 获取文章内容
+// Get article content
 const { post } = Astro.props;
 const { Content } = await render(post);
 
-// 格式化日期
-const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', {
+// Format date
+const formattedDate = post.data.pubDate.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
 });
+
+// Reading time
+const readingTime = post.data.readingTime || 5;
 ---
 
-<BaseLayout title={`${post.data.title} - AI Jomo`} description={post.data.description}>
+<BaseLayout title={`${post.data.title} - Ioodu's Blog`} description={post.data.description}>
   <article class="max-w-4xl mx-auto px-4 py-12">
-    {/* 文章头部 */}
+    {/* Article Header */}
     <header class="mb-12">
-      {/* 标签 */}
+      {/* Categories */}
       <div class="flex flex-wrap gap-2 mb-4">
-        <span class="text-xs font-medium px-2 py-1 rounded bg-cyber-cyan/10 text-cyber-cyan">
-          技术
-        </span>
-        {post.data.tags.map((tag) => (
-          <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-            {tag}
+        {post.data.categories?.map((category) => (
+          <span class="text-xs font-medium px-2 py-1 rounded bg-cyber-cyan/10 text-cyber-cyan uppercase tracking-wide">
+            {category}
           </span>
         ))}
       </div>
 
-      {/* 标题 */}
-      <h1 class="text-4xl font-bold text-slate-900 dark:text-white mb-4">
+      {/* Title */}
+      <h1 class="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6 leading-tight">
         {post.data.title}
       </h1>
 
-      {/* 元信息 */}
-      <div class="flex items-center gap-4 text-sm text-slate-500">
+      {/* Description */}
+      <p class="text-xl text-slate-600 dark:text-slate-400 mb-6">
+        {post.data.description}
+      </p>
+
+      {/* Meta Info */}
+      <div class="flex flex-wrap items-center gap-4 text-sm text-slate-500">
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-slate-700 dark:text-slate-300">
+            {post.data.author || 'Ioodu'}
+          </span>
+        </div>
+        <span>·</span>
         <time datetime={post.data.pubDate.toISOString()}>
           {formattedDate}
         </time>
+        {post.data.updatedDate && (
+          <>
+            <span>·</span>
+            <span class="italic">
+              Updated: {post.data.updatedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          </>
+        )}
+        <span>·</span>
+        <span class="flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {readingTime} min read
+        </span>
+      </div>
+
+      {/* Tags */}
+      <div class="flex flex-wrap gap-2 mt-4">
+        {post.data.tags.map((tag) => (
+          <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+            #{tag}
+          </span>
+        ))}
       </div>
     </header>
 
-    {/* 封面图（可选） */}
+    {/* Cover Image (optional) */}
     {post.data.cover && (
       <div class="mb-12 rounded-xl overflow-hidden">
         <img
@@ -68,7 +103,7 @@ const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', {
       </div>
     )}
 
-    {/* 文章内容 - 使用 Tailwind Typography 样式 */}
+    {/* Article Content */}
     <div class="prose prose-slate dark:prose-invert prose-lg max-w-none
       prose-headings:text-slate-900 dark:prose-headings:text-white
       prose-a:text-cyber-cyan dark:prose-a:text-cyber-cyan
@@ -79,7 +114,7 @@ const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', {
       <Content />
     </div>
 
-    <!-- 评论系统 -->
+    {/* Comments System */}
     <Giscus />
   </article>
 </BaseLayout>

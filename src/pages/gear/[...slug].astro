@@ -1,13 +1,13 @@
 ---
 /**
- * 装备文章详情页
+ * Gear Review Detail Page
  */
 
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Giscus from '../../components/Giscus.astro';
 
-// 生成所有装备文章的静态路径
+// Generate static paths for all gear articles
 export async function getStaticPaths() {
   const posts = await getCollection('gear');
   return posts.map((post) => ({
@@ -16,40 +16,47 @@ export async function getStaticPaths() {
   }));
 }
 
-// 获取文章内容
+// Get article content
 const { post } = Astro.props;
 const { Content } = await render(post);
 
-// 格式化日期
-const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', {
+// Format date
+const formattedDate = post.data.pubDate.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
 });
 ---
 
-<BaseLayout title={`${post.data.title} - AI Jomo`} description={post.data.description}>
+<BaseLayout title={`${post.data.title} - Ioodu's Blog`} description={post.data.description}>
   <article class="max-w-4xl mx-auto px-4 py-12">
-    {/* 文章头部 */}
+    {/* Article Header */}
     <header class="mb-12">
-      {/* 标签 */}
+      {/* Categories */}
       <div class="flex flex-wrap gap-2 mb-4">
-        <span class="text-xs font-medium px-2 py-1 rounded bg-electric-blue/10 text-electric-blue">
-          装备
-        </span>
-        {post.data.tags.map((tag) => (
-          <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-            {tag}
+        {post.data.categories?.map((category) => (
+          <span class="text-xs font-medium px-2 py-1 rounded bg-electric-blue/10 text-electric-blue uppercase tracking-wide">
+            {category}
           </span>
         ))}
+        {post.data.brand && (
+          <span class="text-xs font-medium px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+            {post.data.brand}
+          </span>
+        )}
       </div>
 
-      {/* 标题 */}
-      <h1 class="text-4xl font-bold text-slate-900 dark:text-white mb-4">
+      {/* Title */}
+      <h1 class="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6 leading-tight">
         {post.data.title}
       </h1>
 
-      {/* 元信息 */}
+      {/* Description */}
+      <p class="text-xl text-slate-600 dark:text-slate-400 mb-6">
+        {post.data.description}
+      </p>
+
+      {/* Meta Info */}
       <div class="flex items-center justify-between flex-wrap gap-4">
         <div class="flex items-center gap-4 text-sm text-slate-500">
           <time datetime={post.data.pubDate.toISOString()}>
@@ -57,11 +64,11 @@ const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', {
           </time>
         </div>
 
-        {/* 评分 */}
-        <div class="flex items-center gap-2">
+        {/* Rating */}
+        <div class="flex items-center gap-3">
           <div class="flex">
             {Array.from({ length: 5 }, (_, i) => (
-              <span class={i < post.data.rating ? 'text-yellow-400 text-lg' : 'text-slate-300 dark:text-slate-600 text-lg'}>
+              <span class={i < post.data.rating ? 'text-yellow-400 text-xl' : 'text-slate-300 dark:text-slate-600 text-xl'}>
                 ★
               </span>
             ))}
@@ -71,7 +78,7 @@ const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', {
       </div>
     </header>
 
-    {/* 封面图（可选） */}
+    {/* Cover Image (optional) */}
     {post.data.cover && (
       <div class="mb-12 rounded-xl overflow-hidden">
         <img
@@ -82,7 +89,7 @@ const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', {
       </div>
     )}
 
-    {/* 购买链接（可选） */}
+    {/* Purchase Link (optional) */}
     {post.data.purchaseLink && (
       <div class="mb-8 p-4 bg-electric-blue/10 rounded-xl">
         <a
@@ -94,12 +101,22 @@ const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', {
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
-          查看购买链接
+          View on {post.data.brand || 'Amazon'}
+          {post.data.price && <span class="text-sm opacity-75">({post.data.price})</span>}
         </a>
       </div>
     )}
 
-    {/* 文章内容 - 使用 Tailwind Typography 样式 */}
+    {/* Tags */}
+    <div class="flex flex-wrap gap-2 mb-8">
+      {post.data.tags.map((tag) => (
+        <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+          #{tag}
+        </span>
+      ))}
+    </div>
+
+    {/* Article Content */}
     <div class="prose prose-slate dark:prose-invert prose-lg max-w-none
       prose-headings:text-slate-900 dark:prose-headings:text-white
       prose-a:text-electric-blue dark:prose-a:text-electric-blue
@@ -110,7 +127,7 @@ const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', {
       <Content />
     </div>
 
-    <!-- 评论系统 -->
+    {/* Comments System */}
     <Giscus />
   </article>
 </BaseLayout>

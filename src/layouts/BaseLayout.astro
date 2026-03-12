@@ -1,7 +1,7 @@
 ---
 /**
- * 基础布局组件
- * 包含：毛玻璃导航栏、ClientRouter 页面过渡、ThemeToggle、CommandPalette、SEO
+ * Base Layout Component
+ * Includes: Glassmorphism Navbar, ClientRouter Page Transitions, ThemeToggle, CommandPalette, SEO
  */
 
 import { ClientRouter } from 'astro:transitions';
@@ -10,10 +10,10 @@ import ThemeToggle from '../components/ThemeToggle';
 import CommandPalette from '../components/CommandPalette';
 import '../styles/global.css';
 
-// 站点配置
+// Site configuration
 const siteUrl = 'https://your-domain.com';
 
-// 接收搜索数据
+// Props interface
 interface Props {
   title: string;
   description?: string;
@@ -27,24 +27,24 @@ interface Props {
   }>;
 }
 
-const { title, description = 'AI Jomo 的技术博客 - 探索编程、架构与生活', searchItems = [] } = Astro.props;
+const { title, description = 'A blog about programming, architecture, AI, and gear reviews.', searchItems = [] } = Astro.props;
 
-// 导航链接
+// Navigation links
 const navLinks = [
-  { href: '/tech', label: '技术' },
-  { href: '/gear', label: '装备' },
-  { href: '/about', label: '关于' },
+  { href: '/tech', label: 'Tech' },
+  { href: '/gear', label: 'Gear' },
+  { href: '/about', label: 'About' },
 ];
 ---
 
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- SEO 配置 -->
+    <!-- SEO Configuration -->
     <SEO
       title={title}
       description={description}
@@ -57,16 +57,16 @@ const navLinks = [
           image: `${siteUrl}/og-image.png`,
         },
         optional: {
-          locale: 'zh_CN',
-          siteName: 'AI Jomo',
+          locale: 'en_US',
+          siteName: "Ioodu's Blog",
         },
       }}
     />
 
-    <!-- 页面过渡 -->
+    <!-- Page Transitions -->
     <ClientRouter />
 
-    <!-- 初始化暗黑模式（防止闪烁） -->
+    <!-- Initialize dark mode (prevent flash) -->
     <script is:inline>
       const stored = localStorage.getItem('theme');
       if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -76,13 +76,13 @@ const navLinks = [
   </head>
 
   <body class="min-h-screen flex flex-col">
-    <!-- 毛玻璃导航栏 -->
+    <!-- Glassmorphism Navbar -->
     <header class="fixed top-0 left-0 right-0 z-40 glass">
       <nav class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-        {/* 左侧：Logo - 纯 CSS 像素风 */}
+        <!-- Left: Logo - Pure CSS Pixel Art -->
         <a href="/" class="flex items-center gap-2 group">
           <div class="w-8 h-8 relative">
-            {/* 像素风格 Logo - 机器人图案 */}
+            <!-- Pixel-style Logo - Robot Pattern -->
             <div class="absolute inset-0 grid grid-cols-4 grid-rows-4 gap-0.5">
               <div class="col-start-1 row-start-2 bg-cyber-cyan"></div>
               <div class="col-start-4 row-start-2 bg-cyber-cyan"></div>
@@ -92,11 +92,11 @@ const navLinks = [
             </div>
           </div>
           <span class="font-mono text-lg font-bold text-slate-900 dark:text-white group-hover:text-cyber-cyan transition-colors">
-            AI Jomo
+            Ioodu
           </span>
         </a>
 
-        {/* 中间：导航链接 */}
+        <!-- Center: Navigation Links -->
         <ul class="flex items-center gap-6">
           {navLinks.map((link) => (
             <li>
@@ -110,38 +110,38 @@ const navLinks = [
           ))}
         </ul>
 
-        {/* 右侧：主题切换 + 命令面板触发器 */}
+        <!-- Right: Theme Toggle + Command Palette Trigger -->
         <div class="flex items-center gap-3">
-          {/* 命令面板触发按钮 */}
+          <!-- Command Palette Trigger -->
           <button
             id="cmd-k-trigger"
             class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-cyber-cyan transition-colors text-sm"
           >
-            <span class="text-xs">搜索</span>
+            <span class="text-xs">Search</span>
             <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">⌘K</kbd>
           </button>
 
-          <!-- 主题切换 -->
+          <!-- Theme Toggle -->
           <ThemeToggle client:load />
         </div>
       </nav>
     </header>
 
-    <!-- 主内容区域 -->
+    <!-- Main Content -->
     <main class="flex-1 pt-16">
       <slot />
     </main>
 
-    <!-- 页脚 -->
+    <!-- Footer -->
     <footer class="border-t border-slate-200 dark:border-slate-800 mt-20">
       <div class="max-w-6xl mx-auto px-4 py-8">
         <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-          <!-- 版权信息 -->
+          <!-- Copyright -->
           <p class="text-sm text-slate-500">
-            © {new Date().getFullYear()} AI Jomo. All rights reserved.
+            &copy; {new Date().getFullYear()} Ioodu. All rights reserved.
           </p>
 
-          <!-- 链接 -->
+          <!-- Links -->
           <div class="flex items-center gap-4">
             <a
               href="/rss.xml"
@@ -150,7 +150,7 @@ const navLinks = [
               RSS
             </a>
             <a
-              href="https://github.com"
+              href="https://github.com/chinadbo/AI-JOMO"
               target="_blank"
               rel="noopener noreferrer"
               class="text-sm text-slate-500 hover:text-cyber-cyan transition-colors"
@@ -162,13 +162,13 @@ const navLinks = [
       </div>
     </footer>
 
-    <!-- 命令面板 -->
+    <!-- Command Palette -->
     <CommandPalette client:load items={searchItems} />
 
-    <!-- 命令面板触发脚本 -->
+    <!-- Command Palette Trigger Script -->
     <script>
       document.getElementById('cmd-k-trigger')?.addEventListener('click', () => {
-        // 触发 CommandPalette 打开
+        // Trigger CommandPalette to open
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
       });
     </script>
