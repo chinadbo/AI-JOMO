@@ -1,0 +1,60 @@
+---
+/**
+ * 装备文章列表页
+ */
+
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+
+// 获取所有装备文章，按日期排序
+const posts = (await getCollection('gear'))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+// 构建搜索数据
+const searchItems = posts.map((post) => ({
+  title: post.data.title,
+  url: `/gear/${post.id}`,
+  description: post.data.description,
+  tags: post.data.tags,
+  type: 'article' as const,
+  category: 'gear',
+}));
+---
+
+<BaseLayout title="装备分享 - AI Jomo" description="装备分享列表 - 数码、EDC、书影音" searchItems={searchItems}>
+  <div class="max-w-6xl mx-auto px-4 py-12">
+    <div class="mb-12">
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
+        <span class="text-electric-blue">#</span> 装备分享
+      </h1>
+      <p class="text-slate-600 dark:text-slate-400">
+        数码装备、EDC 装备与书影音推荐
+      </p>
+    </div>
+
+    {posts.length > 0 ? (
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {posts.map((post) => (
+          <PostCard
+            title={post.data.title}
+            description={post.data.description}
+            pubDate={post.data.pubDate}
+            tags={post.data.tags}
+            cover={post.data.cover}
+            url={`/gear/${post.id}`}
+            category="gear"
+            rating={post.data.rating}
+          />
+        ))}
+      </div>
+    ) : (
+      <div class="text-center py-20">
+        <p class="text-slate-500 mb-4">暂无装备分享</p>
+        <a href="/" class="text-electric-blue hover:underline">
+          返回首页
+        </a>
+      </div>
+    )}
+  </div>
+</BaseLayout>

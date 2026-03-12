@@ -1,0 +1,52 @@
+---
+/**
+ * Giscus 评论组件
+ *
+ * 使用方法：
+ * 1. 前往 https://giscus.app 配置你的 GitHub 仓库
+ * 2. 获取以下参数并替换下方占位符：
+ *    - data-repo: 你的 GitHub 用户名/仓库名
+ *    - data-repo-id: 仓库 ID（在 giscus 页面获取）
+ *    - data-category: 评论分类
+ *    - data-category-id: 分类 ID
+ * 3. 评论系统会自动根据文章路径匹配对应的讨论
+ */
+---
+
+<div class="giscus-wrapper mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
+  <script
+    is:inline
+    src="https://giscus.app/client.js"
+    data-repo="GITHUB_USER/REPO_NAME"
+    data-repo-id="REPO_ID"
+    data-category="Announcements"
+    data-category-id="CATEGORY_ID"
+    data-mapping="pathname"
+    data-strict="0"
+    data-reactions-enabled="1"
+    data-emit-metadata="0"
+    data-input-position="bottom"
+    data-theme="transparent_dark"
+    data-lang="zh-CN"
+    data-loading="lazy"
+    crossorigin="anonymous"
+    async
+  ></script>
+</div>
+
+<style>
+  .giscus-wrapper {
+    /* 确保 Giscus 容器宽度合适 */
+    min-height: 200px;
+  }
+
+  /* 自定义 Giscus 主题颜色 - 匹配赛博朋克风格 */
+  :global(.giscus) {
+    --giscus-background: transparent;
+    --giscus-card-background: rgba(30, 41, 59, 0.5);
+    --giscus-border: #334155;
+    --giscus-text-color: #e2e8f0;
+    --giscus-link-color: #00f5ff;
+    --giscus-font-family: system-ui, -apple-system, sans-serif;
+  }
+</style>

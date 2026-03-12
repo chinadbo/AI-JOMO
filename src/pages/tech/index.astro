@@ -1,0 +1,59 @@
+---
+/**
+ * 技术文章列表页
+ */
+
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+
+// 获取所有技术文章，按日期排序
+const posts = (await getCollection('tech'))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+// 构建搜索数据
+const searchItems = posts.map((post) => ({
+  title: post.data.title,
+  url: `/tech/${post.id}`,
+  description: post.data.description,
+  tags: post.data.tags,
+  type: 'article' as const,
+  category: 'tech',
+}));
+---
+
+<BaseLayout title="技术文章 - AI Jomo" description="技术文章列表 - 编程、架构、AI" searchItems={searchItems}>
+  <div class="max-w-6xl mx-auto px-4 py-12">
+    <div class="mb-12">
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
+        <span class="text-cyber-cyan">#</span> 技术文章
+      </h1>
+      <p class="text-slate-600 dark:text-slate-400">
+        探索编程、架构与 AI 的无限可能
+      </p>
+    </div>
+
+    {posts.length > 0 ? (
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {posts.map((post) => (
+          <PostCard
+            title={post.data.title}
+            description={post.data.description}
+            pubDate={post.data.pubDate}
+            tags={post.data.tags}
+            cover={post.data.cover}
+            url={`/tech/${post.id}`}
+            category="tech"
+          />
+        ))}
+      </div>
+    ) : (
+      <div class="text-center py-20">
+        <p class="text-slate-500 mb-4">暂无技术文章</p>
+        <a href="/" class="text-cyber-cyan hover:underline">
+          返回首页
+        </a>
+      </div>
+    )}
+  </div>
+</BaseLayout>

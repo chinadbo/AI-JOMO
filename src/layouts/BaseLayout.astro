@@ -1,0 +1,176 @@
+---
+/**
+ * 基础布局组件
+ * 包含：毛玻璃导航栏、ClientRouter 页面过渡、ThemeToggle、CommandPalette、SEO
+ */
+
+import { ClientRouter } from 'astro:transitions';
+import { SEO } from 'astro-seo';
+import ThemeToggle from '../components/ThemeToggle';
+import CommandPalette from '../components/CommandPalette';
+import '../styles/global.css';
+
+// 站点配置
+const siteUrl = 'https://your-domain.com';
+
+// 接收搜索数据
+interface Props {
+  title: string;
+  description?: string;
+  searchItems?: Array<{
+    title: string;
+    url: string;
+    description: string;
+    tags: string[];
+    type: 'article' | 'command';
+    category?: string;
+  }>;
+}
+
+const { title, description = 'AI Jomo 的技术博客 - 探索编程、架构与生活', searchItems = [] } = Astro.props;
+
+// 导航链接
+const navLinks = [
+  { href: '/tech', label: '技术' },
+  { href: '/gear', label: '装备' },
+  { href: '/about', label: '关于' },
+];
+---
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- SEO 配置 -->
+    <SEO
+      title={title}
+      description={description}
+      canonical={`${siteUrl}${Astro.url.pathname}`}
+      openGraph={{
+        basic: {
+          title: title,
+          url: `${siteUrl}${Astro.url.pathname}`,
+          type: 'website',
+          image: `${siteUrl}/og-image.png`,
+        },
+        optional: {
+          locale: 'zh_CN',
+          siteName: 'AI Jomo',
+        },
+      }}
+    />
+
+    <!-- 页面过渡 -->
+    <ClientRouter />
+
+    <!-- 初始化暗黑模式（防止闪烁） -->
+    <script is:inline>
+      const stored = localStorage.getItem('theme');
+      if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    </script>
+  </head>
+
+  <body class="min-h-screen flex flex-col">
+    <!-- 毛玻璃导航栏 -->
+    <header class="fixed top-0 left-0 right-0 z-40 glass">
+      <nav class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        {/* 左侧：Logo - 纯 CSS 像素风 */}
+        <a href="/" class="flex items-center gap-2 group">
+          <div class="w-8 h-8 relative">
+            {/* 像素风格 Logo - 机器人图案 */}
+            <div class="absolute inset-0 grid grid-cols-4 grid-rows-4 gap-0.5">
+              <div class="col-start-1 row-start-2 bg-cyber-cyan"></div>
+              <div class="col-start-4 row-start-2 bg-cyber-cyan"></div>
+              <div class="col-start-2 row-start-3 col-span-2 bg-cyber-cyan"></div>
+              <div class="col-start-1 row-start-4 bg-cyber-cyan"></div>
+              <div class="col-start-4 row-start-4 bg-cyber-cyan"></div>
+            </div>
+          </div>
+          <span class="font-mono text-lg font-bold text-slate-900 dark:text-white group-hover:text-cyber-cyan transition-colors">
+            AI Jomo
+          </span>
+        </a>
+
+        {/* 中间：导航链接 */}
+        <ul class="flex items-center gap-6">
+          {navLinks.map((link) => (
+            <li>
+              <a
+                href={link.href}
+                class="font-medium text-slate-700 dark:text-slate-300 hover:text-cyber-cyan dark:hover:text-cyber-cyan transition-colors"
+              >
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+
+        {/* 右侧：主题切换 + 命令面板触发器 */}
+        <div class="flex items-center gap-3">
+          {/* 命令面板触发按钮 */}
+          <button
+            id="cmd-k-trigger"
+            class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-cyber-cyan transition-colors text-sm"
+          >
+            <span class="text-xs">搜索</span>
+            <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">⌘K</kbd>
+          </button>
+
+          <!-- 主题切换 -->
+          <ThemeToggle client:load />
+        </div>
+      </nav>
+    </header>
+
+    <!-- 主内容区域 -->
+    <main class="flex-1 pt-16">
+      <slot />
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="border-t border-slate-200 dark:border-slate-800 mt-20">
+      <div class="max-w-6xl mx-auto px-4 py-8">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+          <!-- 版权信息 -->
+          <p class="text-sm text-slate-500">
+            © {new Date().getFullYear()} AI Jomo. All rights reserved.
+          </p>
+
+          <!-- 链接 -->
+          <div class="flex items-center gap-4">
+            <a
+              href="/rss.xml"
+              class="text-sm text-slate-500 hover:text-cyber-cyan transition-colors"
+            >
+              RSS
+            </a>
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-sm text-slate-500 hover:text-cyber-cyan transition-colors"
+            >
+              GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- 命令面板 -->
+    <CommandPalette client:load items={searchItems} />
+
+    <!-- 命令面板触发脚本 -->
+    <script>
+      document.getElementById('cmd-k-trigger')?.addEventListener('click', () => {
+        // 触发 CommandPalette 打开
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,77 @@
+---
+title: "Hello Astro - 我的博客迁移之旅"
+description: "从零开始使用 Astro + React + TypeScript 搭建赛博朋克风格的技术博客"
+pubDate: 2024-01-15
+tags:
+  - Astro
+  - React
+  - TypeScript
+  - 博客搭建
+cover: ""
+---
+
+## 写在前面
+
+大家好！这是我的第一篇技术博客文章。今天我想分享一下如何从零开始搭建一个**赛博朋克风格**的技术博客。
+
+## 技术选型
+
+经过深思熟虑，我选择了以下技术栈：
+
+| 技术 | 用途 |
+|------|------|
+| Astro | 静态站点生成器 |
+| React | 交互组件 |
+| TypeScript | 类型安全 |
+| Tailwind CSS | 样式方案 |
+
+## 为什么选择 Astro？
+
+Astro 是一个非常适合内容驱动的网站的框架：
+
+> **Astro** 是一个全栈 Web 框架，让你能够更快地构建内容驱动的网站。
+
+### 主要优势
+
+1. **零 JS 默认** - Astro 默认不发送 JavaScript
+2. ** Islands 架构** - 只在需要时使用交互组件
+3. **Content Collections** - 强大的内容管理
+4. **优秀的 DX** - 完整的 TypeScript 支持
+
+## 代码示例
+
+让我展示一个简单的 React 组件：
+
+```tsx
+import { useState } from 'react';
+
+export function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <button onClick={() => setCount(count + 1)}>
+      Count: {count}
+    </button>
+  );
+}
+```
+
+## 样式主题
+
+我为博客设计了赛博朋克风格的主题：
+
+- **Cyber Cyan**: `#00f5ff` - 主色调
+- **Electric Blue**: `#3b82f6` - 次要色调
+
+```css
+:root {
+  --color-cyber-cyan: #00f5ff;
+  --color-electric-blue: #3b82f6;
+}
+```
+
+## 结语
+
+这就是我的博客搭建全过程。希望对想要搭建个人博客的你有所帮助！
+
+如果你有任何问题，欢迎在评论区留言交流。

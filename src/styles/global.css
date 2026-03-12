@@ -1,0 +1,59 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* 赛博朋克配色主题 */
+@theme {
+  /* 主色调 */
+  --color-cyber-cyan: #00f5ff;
+  --color-electric-blue: #3b82f6;
+
+  /* 暗黑背景 */
+  --color-slate-950: #020617;
+
+  /* 字体 */
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* 暗黑模式配置 */
+.dark {
+  color-scheme: dark;
+}
+
+/* 基础样式 */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 毛玻璃效果 */
+.glass {
+  @apply backdrop-blur-md bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800;
+}
+
+/* 青色发光阴影 */
+.glow-cyan {
+  box-shadow: 0 0 30px rgba(0, 245, 255, 0.3);
+}
+
+/* 代码块样式 */
+pre {
+  @apply bg-slate-900 dark:bg-slate-900 text-slate-100 rounded-lg p-4 overflow-x-auto;
+}
+
+code {
+  @apply font-mono text-sm;
+}
+
+/* 链接样式 */
+a {
+  @apply text-electric-blue dark:text-cyber-cyan hover:underline;
+}
+
+/* 选中文字颜色 */
+::selection {
+  @apply bg-cyber-cyan/30 text-slate-900 dark:text-white;
+}
