@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap');
 
 /* Enable dark mode using class strategy */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -9,12 +10,26 @@
   /* 主色调 */
   --color-cyber-cyan: #00f5ff;
   --color-electric-blue: #3b82f6;
+  --color-cyber-purple: #8b5cf6;
+  --color-cyber-pink: #ec4899;
+  --color-cyber-green: #10b981;
 
   /* 暗黑背景 */
   --color-slate-950: #020617;
+  --color-slate-900: #0f172a;
 
-  /* 字体 */
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* 字体系统 */
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
+  --font-display: 'JetBrains Mono', ui-monospace, sans-serif;
+}
+
+/* CSS Variables for fonts */
+:root {
+  --font-display: 'JetBrains Mono', ui-monospace, sans-serif;
+  --font-body: 'Noto Sans SC', 'Source Serif 4', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 /* 暗黑模式配置 */
@@ -29,7 +44,44 @@ html {
 
 body {
   @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-body);
+  font-feature-settings: "kern" 1, "liga" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 字体层级系统 */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* 文章正文优化 */
+.prose {
+  font-family: var(--font-body);
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.prose code {
+  font-family: var(--font-mono);
+}
+
+/* 标题样式优化 */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 /* 毛玻璃效果 */
@@ -42,21 +94,196 @@ body {
   box-shadow: 0 0 30px rgba(0, 245, 255, 0.3);
 }
 
-/* 代码块样式 */
+/* 代码块样式 - Shiki 高亮支持 */
 pre {
   @apply bg-slate-900 text-slate-100 rounded-lg p-4 overflow-x-auto;
+  font-family: var(--font-mono);
 }
 
-code {
-  @apply font-mono text-sm;
+pre code {
+  @apply font-mono text-sm leading-relaxed;
+  font-family: var(--font-mono);
+}
+
+/* 行内代码 */
+code:not(pre code) {
+  @apply font-mono text-sm px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-cyber-cyan dark:text-cyber-cyan;
+  font-family: var(--font-mono);
 }
 
 /* 链接样式 */
 a {
   @apply text-electric-blue dark:text-cyber-cyan hover:underline;
+  text-underline-offset: 0.2em;
 }
 
 /* 选中文字颜色 */
 ::selection {
   @apply bg-cyber-cyan/30 text-slate-900 dark:text-white;
+}
+
+/* 阅读进度条 */
+.reading-progress {
+  @apply fixed top-0 left-0 h-0.5 bg-cyber-cyan z-50 transition-all duration-150;
+  box-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+}
+
+/* 文章目录样式 */
+.toc {
+  @apply text-sm;
+}
+
+.toc a {
+  @apply block py-1 px-2 rounded transition-colors;
+}
+
+.toc a:hover {
+  @apply bg-cyber-cyan/10;
+}
+
+.toc a.active {
+  @apply text-cyber-cyan bg-cyber-cyan/10;
+}
+
+/* 打字机光标 */
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* 渐变文字 */
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-cyber-cyan to-electric-blue;
+}
+
+/* 网格背景 */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(0, 245, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 245, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* 卡片悬停效果 */
+.card-hover {
+  @apply transition-all duration-300;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(0, 245, 255, 0.15);
+}
+
+/* 按钮样式 */
+.btn-cyber {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30;
+}
+
+.btn-cyber:hover {
+  @apply bg-cyber-cyan/20 border-cyber-cyan/50;
+  box-shadow: 0 0 20px rgba(0, 245, 255, 0.2);
+}
+
+/* 标签样式 */
+.tag {
+  @apply px-2 py-1 text-xs font-medium rounded-full;
+  @apply bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400;
+  @apply border border-slate-200 dark:border-slate-700;
+  @apply transition-colors duration-200;
+}
+
+.tag:hover {
+  @apply border-cyber-cyan/50 text-cyber-cyan;
+}
+
+/* 引用块样式 */
+blockquote {
+  @apply border-l-4 border-cyber-cyan pl-4 italic text-slate-600 dark:text-slate-400;
+}
+
+/* 表格样式 */
+table {
+  @apply w-full border-collapse;
+}
+
+th, td {
+  @apply border border-slate-200 dark:border-slate-700 px-4 py-2;
+}
+
+th {
+  @apply bg-slate-100 dark:bg-slate-800 font-semibold;
+}
+
+/* 分割线 */
+hr {
+  @apply border-slate-200 dark:border-slate-700 my-8;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-100 dark:bg-slate-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400 dark:bg-slate-600;
+}
+
+/* 打印样式 */
+@media print {
+  .reading-progress,
+  .toc-sidebar {
+    display: none !important;
+  }
+}
+
+/* 动画工具类 */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+
+/* Shiki 语法高亮主题适配 */
+pre.shiki {
+  @apply bg-slate-900 !important;
+}
+
+pre.shiki code {
+  @apply bg-transparent !important;
+}
+
+/* 代码块标题 */
+.code-block-header {
+  @apply flex items-center justify-between px-4 py-2 bg-slate-800 rounded-t-lg border-b border-slate-700;
+}
+
+.code-block-title {
+  @apply text-xs text-slate-400 font-mono;
+}
+
+.code-block-copy {
+  @apply text-xs text-slate-500 hover:text-cyber-cyan transition-colors;
 }

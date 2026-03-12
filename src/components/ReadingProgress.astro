@@ -1,0 +1,36 @@
+---
+/**
+ * Reading Progress Bar Component
+ * Shows reading progress at the top of the page
+ */
+---
+
+<div id="reading-progress" class="reading-progress" style="width: 0%"></div>
+
+<script>
+  (function() {
+    const progressBar = document.getElementById('reading-progress');
+    if (!progressBar) return;
+
+    let ticking = false;
+
+    function updateProgress() {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      progressBar.style.width = progress + '%';
+      ticking = false;
+    }
+
+    function requestTick() {
+      if (!ticking) {
+        requestAnimationFrame(updateProgress);
+        ticking = true;
+      }
+    }
+
+    window.addEventListener('scroll', requestTick, { passive: true });
+    // Initial update
+    updateProgress();
+  })();
+</script>

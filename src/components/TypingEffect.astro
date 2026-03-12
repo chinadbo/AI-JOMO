@@ -1,0 +1,82 @@
+---
+/**
+ * Typing Effect Component
+ * Simulates terminal typing animation
+ */
+
+interface Props {
+  lines: Array<{
+    prefix?: string;
+    text: string;
+    color?: string;
+  }>;
+  speed?: number;
+  delay?: number;
+}
+
+const { lines, speed = 50, delay = 0 } = Astro.props;
+---
+
+<div class="terminal-content font-mono text-sm" data-typing-lines={JSON.stringify(lines)} data-typing-speed={speed} data-typing-delay={delay}>
+  <div class="typing-container"></div>
+  <span class="cursor-blink text-cyber-cyan">_</span>
+</div>
+
+<script>
+  (function() {
+    const containers = document.querySelectorAll('[data-typing-lines]');
+
+    containers.forEach((container) => {
+      const lines = JSON.parse(container.getAttribute('data-typing-lines') || '[]');
+      const speed = parseInt(container.getAttribute('data-typing-speed') || '50');
+      const delay = parseInt(container.getAttribute('data-typing-delay') || '0');
+      const output = container.querySelector('.typing-container');
+
+      if (!output || lines.length === 0) return;
+
+      const colorMap: Record<string, string> = {
+        cyan: 'text-cyber-cyan',
+        green: 'text-green-400',
+        blue: 'text-electric-blue',
+        yellow: 'text-yellow-400',
+        purple: 'text-purple-400',
+        pink: 'text-pink-400',
+        slate: 'text-slate-300',
+        muted: 'text-slate-400',
+      };
+
+      async function typeLine(line: typeof lines[0]) {
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'flex items-start gap-2 mb-1';
+
+        if (line.prefix) {
+          const prefix = document.createElement('span');
+          prefix.className = colorMap[line.color || 'green'] || 'text-green-400';
+          prefix.textContent = line.prefix;
+          lineDiv.appendChild(prefix);
+        }
+
+        const textSpan = document.createElement('span');
+        textSpan.className = colorMap[line.color || 'slate'] || 'text-slate-300';
+        lineDiv.appendChild(textSpan);
+        output.appendChild(lineDiv);
+
+        // Type each character
+        for (let i = 0; i < line.text.length; i++) {
+          textSpan.textContent += line.text[i];
+          await new Promise((resolve) => setTimeout(resolve, speed));
+        }
+      }
+
+      async function startTyping() {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        for (const line of lines) {
+          await typeLine(line);
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+      }
+
+      startTyping();
+    });
+  })();
+</script>

@@ -1,0 +1,62 @@
+---
+/**
+ * Page Navigation Component
+ * Previous/Next post navigation
+ */
+
+interface Props {
+  prev?: {
+    title: string;
+    url: string;
+  };
+  next?: {
+    title: string;
+    url: string;
+  };
+  currentLang: string;
+}
+
+const { prev, next, currentLang } = Astro.props;
+---
+
+{(prev || next) && (
+  <nav class="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
+    <div class="flex flex-col sm:flex-row gap-4">
+      {prev && (
+        <a
+          href={prev.url}
+          class="group flex-1 p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:border-cyber-cyan/50 transition-all card-hover"
+        >
+          <div class="flex items-center gap-2 text-sm text-slate-500 mb-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            {currentLang === 'zh' ? '上一篇' : 'Previous'}
+          </div>
+          <div class="font-medium text-slate-900 dark:text-slate-100 group-hover:text-cyber-cyan transition-colors line-clamp-2">
+            {prev.title}
+          </div>
+        </a>
+      )}
+      {!prev && <div class="flex-1" />}
+
+      {next && (
+        <a
+          href={next.url}
+          class="group flex-1 p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:border-cyber-cyan/50 transition-all card-hover text-right sm:text-left"
+        >
+          <div class="flex items-center justify-end sm:justify-between gap-2 text-sm text-slate-500 mb-1">
+            <span class="hidden sm:inline" />
+            {currentLang === 'zh' ? '下一篇' : 'Next'}
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </div>
+          <div class="font-medium text-slate-900 dark:text-slate-100 group-hover:text-cyber-cyan transition-colors line-clamp-2">
+            {next.title}
+          </div>
+        </a>
+      )}
+    </div>
+  </nav>
+)}

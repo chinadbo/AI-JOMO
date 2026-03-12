@@ -10,6 +10,8 @@ export interface Translations {
   nav: {
     tech: string;
     gear: string;
+    essays: string;
+    life: string;
     about: string;
   };
 
@@ -30,6 +32,18 @@ export interface Translations {
 
   // Tech Page
   tech: {
+    title: string;
+    subtitle: string;
+  };
+
+  // Essays Page
+  essays: {
+    title: string;
+    subtitle: string;
+  };
+
+  // Life Page
+  life: {
     title: string;
     subtitle: string;
   };
@@ -76,6 +90,8 @@ export const translations: Record<Language, Translations> = {
     nav: {
       tech: 'Tech',
       gear: 'Gear',
+      essays: 'Essays',
+      life: 'Life',
       about: 'About',
     },
     home: {
@@ -94,6 +110,14 @@ export const translations: Record<Language, Translations> = {
     tech: {
       title: 'Tech Articles',
       subtitle: 'Exploring programming, architecture, and the future of technology',
+    },
+    essays: {
+      title: 'Essays',
+      subtitle: 'Thoughts on technology, career, and life',
+    },
+    life: {
+      title: 'Life',
+      subtitle: 'Daily moments, hobbies, and lifestyle',
     },
     gear: {
       title: 'Gear Reviews',
@@ -126,6 +150,8 @@ export const translations: Record<Language, Translations> = {
     nav: {
       tech: '技术',
       gear: '装备',
+      essays: '随笔',
+      life: '生活',
       about: '关于',
     },
     home: {
@@ -144,6 +170,14 @@ export const translations: Record<Language, Translations> = {
     tech: {
       title: '技术文章',
       subtitle: '探索编程、架构与技术的未来',
+    },
+    essays: {
+      title: '随笔',
+      subtitle: '关于技术、职业与生活的思考',
+    },
+    life: {
+      title: '生活',
+      subtitle: '日常瞬间、兴趣爱好与生活方式',
     },
     gear: {
       title: '装备评测',

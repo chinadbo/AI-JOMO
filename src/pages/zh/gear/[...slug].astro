@@ -4,6 +4,10 @@
  */
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ReadingProgress from '../../../components/ReadingProgress.astro';
+import TableOfContents from '../../../components/TableOfContents.astro';
+import RelatedPosts from '../../../components/RelatedPosts.astro';
+import PageNavigation from '../../../components/PageNavigation.astro';
 import Giscus from '../../../components/Giscus.astro';
 
 export async function getStaticPaths() {
@@ -12,22 +16,45 @@ export async function getStaticPaths() {
 }
 
 const { post } = Astro.props;
-const { Content } = await render(post);
-const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+const { Content, headings } = await render(post);
+
+const searchItems = [{
+  title: post.data.title,
+  url: `/zh/gear/${post.id}`,
+  description: post.data.description,
+  tags: post.data.tags,
+  type: 'article' as const,
+  category: 'gear',
+}];
+
+// Get prev/next posts
+const allPosts = await getCollection('gear');
+const sortedPosts = allPosts.filter(p => !p.data.draft).sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+const currentIndex = sortedPosts.findIndex((p) => p.id === post.id);
+const prevPost = currentIndex < sortedPosts.length - 1 ? sortedPosts[currentIndex + 1] : null;
+const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
+
+const formatDate = (date: Date) => new Date(date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 ---
 
-<BaseLayout title={`${post.data.title} - Ioodu's Blog`} description={post.data.description}>
-  <article class="max-w-4xl mx-auto px-4 py-12">
-    <header class="mb-12">
+<BaseLayout title={`${post.data.title} - Ioodu's Blog`} description={post.data.description} searchItems={searchItems}>
+  <ReadingProgress />
+  <TableOfContents headings={headings} />
+
+  <article class="max-w-3xl mx-auto px-4 pt-12 pb-20">
+    <header class="mb-8">
       <div class="flex flex-wrap gap-2 mb-4">
         {post.data.categories?.map((category) => <span class="text-xs font-medium px-2 py-1 rounded bg-electric-blue/10 text-electric-blue uppercase tracking-wide">{category}</span>)}
         {post.data.brand && <span class="text-xs font-medium px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">{post.data.brand}</span>}
       </div>
-      <h1 class="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6 leading-tight">{post.data.title}</h1>
-      <p class="text-xl text-slate-600 dark:text-slate-400 mb-6">{post.data.description}</p>
+
+      <h1 class="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4 leading-tight">{post.data.title}</h1>
+
+      <p class="text-lg text-slate-600 dark:text-slate-400 mb-6">{post.data.description}</p>
+
       <div class="flex items-center justify-between flex-wrap gap-4">
         <div class="flex items-center gap-4 text-sm text-slate-500">
-          <time datetime={post.data.pubDate.toISOString()}>{formattedDate}</time>
+          <time datetime={post.data.pubDate.toISOString()}>{formatDate(post.data.pubDate)}</time>
         </div>
         <div class="flex items-center gap-3">
           <div class="flex">
@@ -38,7 +65,7 @@ const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', { year: 'num
       </div>
     </header>
 
-    {post.data.cover && <div class="mb-12 rounded-xl overflow-hidden"><img src={post.data.cover} alt={post.data.title} class="w-full aspect-video object-cover" /></div>}
+    {post.data.cover && <img src={post.data.cover} alt={post.data.title} class="w-full aspect-video object-cover rounded-xl mb-8" />}
 
     {post.data.purchaseLink && (
       <div class="mb-8 p-4 bg-electric-blue/10 rounded-xl">
@@ -50,12 +77,22 @@ const formattedDate = post.data.pubDate.toLocaleDateString('zh-CN', { year: 'num
     )}
 
     <div class="flex flex-wrap gap-2 mb-8">
-      {post.data.tags.map((tag) => <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">#{tag}</span>)}
+      {post.data.tags.map((tag) => <span class="tag">#{tag}</span>)}
     </div>
 
-    <div class="prose prose-slate dark:prose-invert prose-lg max-w-none prose-headings:text-slate-900 dark:prose-headings:text-white prose-a:text-electric-blue dark:prose-a:text-electric-blue prose-code:text-cyber-cyan prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:px-1 prose-code:rounded prose-pre:bg-slate-900 dark:prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-800 prose-blockquote:border-l-electric-blue prose-blockquote:bg-slate-50 dark:prose-blockquote:bg-slate-800/50 prose-blockquote:py-1 prose-img:rounded-xl">
+    <div class="prose prose-lg dark:prose-invert max-w-none">
       <Content />
     </div>
+
+    {/* Related Posts */}
+    <RelatedPosts currentPost={post} currentLang="zh" limit={3} />
+
+    {/* Page Navigation */}
+    <PageNavigation
+      prev={prevPost ? { title: prevPost.data.title, url: `/zh/gear/${prevPost.id}` } : undefined}
+      next={nextPost ? { title: nextPost.data.title, url: `/zh/gear/${nextPost.id}` } : undefined}
+      currentLang="zh"
+    />
 
     <Giscus />
   </article>
