@@ -1,13 +1,14 @@
 ---
 /**
  * Base Layout Component
- * Includes: Glassmorphism Navbar, ClientRouter Page Transitions, ThemeToggle, CommandPalette, SEO
+ * Includes: Glassmorphism Navbar, ClientRouter Page Transitions, ThemeToggle, CommandPalette, Enhanced SEO
  */
 
 import { ClientRouter } from 'astro:transitions';
-import { SEO } from 'astro-seo';
 import ThemeToggle from '../components/ThemeToggle';
 import CommandPalette from '../components/CommandPalette';
+import SEO from '../components/SEO.astro';
+import StructuredData from '../components/StructuredData.astro';
 import { translations, type Language } from '../i18n';
 import '../styles/global.css';
 
@@ -27,6 +28,13 @@ const t = translations[currentLang];
 interface Props {
   title: string;
   description?: string;
+  image?: string;
+  type?: 'website' | 'article';
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  author?: string;
+  tags?: string[];
+  canonical?: string;
   searchItems?: Array<{
     title: string;
     url: string;
@@ -35,9 +43,22 @@ interface Props {
     type: 'article' | 'command';
     category?: string;
   }>;
+  noindex?: boolean;
 }
 
-const { title, description = 'A blog about programming, architecture, AI, and gear reviews.', searchItems = [] } = Astro.props;
+const {
+  title,
+  description = 'A blog about programming, architecture, AI, and gear reviews.',
+  image,
+  type = 'website',
+  publishedTime,
+  modifiedTime,
+  author,
+  tags = [],
+  canonical,
+  searchItems = [],
+  noindex = false,
+} = Astro.props;
 
 // Navigation links with translations
 const navLinks = [
@@ -60,24 +81,22 @@ const currentPath = pathname.replace(/^\/(zh|en)/, '') || '/';
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- SEO Configuration -->
+    <!-- Enhanced SEO -->
     <SEO
       title={title}
       description={description}
-      canonical={`${siteUrl}${pathname}`}
-      openGraph={{
-        basic: {
-          title: title,
-          url: `${siteUrl}${pathname}`,
-          type: 'website',
-          image: `${siteUrl}/og-image.png`,
-        },
-        optional: {
-          locale: currentLang === 'zh' ? 'zh_CN' : 'en_US',
-          siteName: "Ioodu's Blog",
-        },
-      }}
+      image={image}
+      type={type}
+      publishedTime={publishedTime}
+      modifiedTime={modifiedTime}
+      author={author}
+      tags={tags}
+      canonical={canonical || pathname}
+      noindex={noindex}
     />
+
+    <!-- Website Structured Data -->
+    <StructuredData type="WebSite" />
 
     <!-- Page Transitions -->
     <ClientRouter />
@@ -92,25 +111,21 @@ const currentPath = pathname.replace(/^\/(zh|en)/, '') || '/';
 
     <!-- Language detection for client-side -->
     <script is:inline>
-      // Get language from URL or detect from browser
       function getLang() {
         const path = window.location.pathname;
         const match = path.match(/^\/(zh|en)(\/|$)/);
         if (match) return match[1];
-
         const browserLang = navigator.language.toLowerCase();
         if (browserLang.startsWith('zh')) return 'zh';
         return 'en';
       }
-
-      // Store current language
       window.__lang__ = getLang();
     </script>
   </head>
 
   <body class="min-h-screen flex flex-col">
     <!-- Glassmorphism Navbar -->
-    <header class="fixed top-0 left-0 right-0 z-40 glass">
+    <header class="fixed top-0 left-0 right-0 z-40 glass" transition:persist>
       <nav class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         <!-- Left: Logo -->
         <a href={homePath} class="flex items-center gap-2 group">
@@ -173,7 +188,7 @@ const currentPath = pathname.replace(/^\/(zh|en)/, '') || '/';
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-slate-200 dark:border-slate-800 mt-20">
+    <footer class="border-t border-slate-200 dark:border-slate-800 mt-20" transition:persist>
       <div class="max-w-6xl mx-auto px-4 py-8">
         <div class="flex flex-col md:flex-row items-center justify-between gap-4">
           <!-- Copyright -->

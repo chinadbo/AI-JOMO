@@ -8,6 +8,8 @@ import ReadingProgress from '../../../components/ReadingProgress.astro';
 import TableOfContents from '../../../components/TableOfContents.astro';
 import RelatedPosts from '../../../components/RelatedPosts.astro';
 import PageNavigation from '../../../components/PageNavigation.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import StructuredData from '../../../components/StructuredData.astro';
 import Giscus from '../../../components/Giscus.astro';
 
 export async function getStaticPaths() {
@@ -36,13 +38,54 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
 
 const formatDate = (date: Date) => new Date(date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 const readingTime = post.data.readingTime || 5;
+
+// Breadcrumb items
+const breadcrumbItems = [
+  { label: '首页', url: '/zh' },
+  { label: '技术', url: '/zh/tech' },
+  { label: post.data.title, url: `/zh/tech/${post.id}`, isCurrent: true },
+];
+
+// Estimate word count for structured data
+const wordCount = post.body ? post.body.split(/\s+/).length : 0;
 ---
 
-<BaseLayout title={`${post.data.title} - Ioodu's Blog`} description={post.data.description} searchItems={searchItems}>
+<BaseLayout
+  title={post.data.title}
+  description={post.data.description}
+  type="article"
+  publishedTime={post.data.pubDate}
+  modifiedTime={post.data.updatedDate}
+  author={post.data.author}
+  tags={post.data.tags}
+  canonical={`/zh/tech/${post.id}`}
+  searchItems={searchItems}
+>
+  <!-- Article Structured Data -->
+  <StructuredData
+    type="BlogPosting"
+    data={{
+      title: post.data.title,
+      description: post.data.description,
+      url: `/zh/tech/${post.id}`,
+      pubDate: post.data.pubDate,
+      updatedDate: post.data.updatedDate,
+      tags: post.data.tags,
+      category: 'tech',
+      wordCount,
+    }}
+  />
+  <StructuredData
+    type="BreadcrumbList"
+    data={{ items: breadcrumbItems.map(({ label, url }) => ({ name: label, url })) }}
+  />
+
   <ReadingProgress />
   <TableOfContents headings={headings} />
 
   <article class="max-w-3xl mx-auto px-4 pt-12 pb-20">
+    <!-- Breadcrumbs -->
+    <Breadcrumbs items={breadcrumbItems} />
     <header class="mb-8">
       <div class="flex flex-wrap gap-2 mb-4">
         {post.data.categories?.map((category) => (

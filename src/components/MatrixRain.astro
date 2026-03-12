@@ -1,0 +1,104 @@
+---
+/**
+ * Matrix Rain Effect Component
+ * Cyberpunk-inspired character rain
+ */
+interface Props {
+  class?: string;
+}
+
+const { class: className = '' } = Astro.props;
+---
+
+<canvas
+  class={`matrix-rain pointer-events-none ${className}`}
+  data-matrix-rain
+></canvas>
+
+<script>
+  (function() {
+    const canvas = document.querySelector('[data-matrix-rain]') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationId: number;
+    let isActive = true;
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Characters to display
+    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
+    const fontSize = 14;
+    const columns = Math.floor(canvas.width / fontSize);
+    const drops: number[] = new Array(columns).fill(1);
+
+    function draw() {
+      if (!isActive) return;
+
+      // Semi-transparent black to create fade effect
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.font = `${fontSize}px monospace`;
+
+      for (let i = 0; i < drops.length; i++) {
+        // Random character
+        const char = chars[Math.floor(Math.random() * chars.length)];
+
+        // Random color (cyan or electric blue)
+        const colors = ['#00f5ff', '#3b82f6'];
+        ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+
+        // Draw character
+        ctx.fillText(char, i * fontSize, drops[i] * fontSize);
+
+        // Move drop
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+        drops[i]++;
+      }
+
+      animationId = requestAnimationFrame(draw);
+    }
+
+    // Start animation
+    draw();
+
+    // Pause when not visible
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        isActive = false;
+        cancelAnimationFrame(animationId);
+      } else {
+        isActive = true;
+        draw();
+      }
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      cancelAnimationFrame(animationId);
+    });
+  })();
+</script>
+
+<style>
+  .matrix-rain {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    opacity: 0.15;
+  }
+</style>

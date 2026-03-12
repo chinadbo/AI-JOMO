@@ -1,0 +1,102 @@
+---
+/**
+ * Enhanced SEO Component
+ * Comprehensive SEO meta tags and Open Graph
+ */
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  type?: 'website' | 'article';
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  author?: string;
+  tags?: string[];
+  canonical?: string;
+  noindex?: boolean;
+}
+
+const {
+  title,
+  description,
+  image = '/og-image.png',
+  type = 'website',
+  publishedTime,
+  modifiedTime,
+  author = 'Ioodu',
+  tags = [],
+  canonical,
+  noindex = false,
+} = Astro.props;
+
+const siteUrl = 'https://your-domain.com';
+const fullTitle = title.includes("Ioodu's") ? title : `${title} | Ioodu's Blog`;
+const fullImage = image.startsWith('http') ? image : `${siteUrl}${image}`;
+---
+
+<!-- Primary Meta Tags -->
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+<meta name="author" content={author} />
+{tags.length > 0 && <meta name="keywords" content={tags.join(', ')} />}
+
+<!-- Canonical URL -->
+{canonical && <link rel="canonical" href={`${siteUrl}${canonical}`} />}
+
+<!-- Robots -->
+{noindex ? (
+  <meta name="robots" content="noindex, nofollow" />
+) : (
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+)}
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content={type} />
+<meta property="og:url" content={`${siteUrl}${canonical || ''}`} />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={fullImage} />
+<meta property="og:site_name" content="Ioodu's Blog" />
+<meta property="og:locale" content="zh_CN" />
+
+<!-- Article Specific -->
+{type === 'article' && publishedTime && (
+  <meta property="article:published_time" content={publishedTime.toISOString()} />
+)}
+{type === 'article' && modifiedTime && (
+  <meta property="article:modified_time" content={modifiedTime.toISOString()} />
+)}
+{type === 'article' && tags.map((tag) => (
+  <meta property="article:tag" content={tag} />
+))}
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image" />
+<meta property="twitter:url" content={`${siteUrl}${canonical || ''}`} />
+<meta property="twitter:title" content={fullTitle} />
+<meta property="twitter:description" content={description} />
+<meta property="twitter:image" content={fullImage} />
+<meta name="twitter:creator" content="@your_twitter_handle" />
+
+<!-- Mobile -->
+<meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+
+<!-- PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Ioodu's Blog" />
+<meta name="application-name" content="Ioodu's Blog" />
+
+<!-- Verification (add your verification codes) -->
+<!-- <meta name="google-site-verification" content="your-code" /> -->
+<!-- <meta name="msvalidate.01" content="your-code" /> -->
+
+<!-- Preconnect -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+<!-- Alternate Languages -->
+<link rel="alternate" hreflang="zh" href={`${siteUrl}/zh${canonical || ''}`} />
+<link rel="alternate" hreflang="en" href={`${siteUrl}/en${canonical || ''}`} />
+<link rel="alternate" hreflang="x-default" href={`${siteUrl}${canonical || ''}`} />

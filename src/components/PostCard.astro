@@ -11,22 +11,43 @@ interface Props {
   tags: string[];
   cover?: string;
   url: string;
-  category: 'tech' | 'gear';
+  category: 'tech' | 'gear' | 'essays' | 'life';
   rating?: number;
   readingTime?: number;
+  index?: number;
 }
 
-const { title, description, pubDate, tags, cover, url, category, rating, readingTime } = Astro.props;
+const { title, description, pubDate, tags, cover, url, category, rating, readingTime, index = 0 } = Astro.props;
 
 // Format date
-const formattedDate = pubDate.toLocaleDateString('en-US', {
+const formattedDate = pubDate.toLocaleDateString('zh-CN', {
   year: 'numeric',
   month: 'short',
   day: 'numeric',
 });
+
+// Category labels
+const categoryLabels: Record<string, string> = {
+  tech: '技术',
+  gear: '装备',
+  essays: '随笔',
+  life: '生活',
+};
+
+// Category colors
+const categoryColors: Record<string, string> = {
+  tech: 'bg-cyber-cyan/10 text-cyber-cyan',
+  gear: 'bg-electric-blue/10 text-electric-blue',
+  essays: 'bg-cyber-purple/10 text-cyber-purple',
+  life: 'bg-cyber-pink/10 text-cyber-pink',
+};
 ---
 
-<article class="group relative flex flex-col h-full bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-l-4 hover:border-l-cyber-cyan transition-all duration-300 hover:shadow-lg hover:shadow-cyber-cyan/10">
+<article
+  class="group relative flex flex-col h-full bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-cyber-cyan/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyber-cyan/10 card-hover opacity-0 translate-y-4"
+  style={`animation-delay: ${index * 100}ms`}
+  data-animate-card
+>
   {/* Cover Image (optional) */}
   {cover && (
     <a href={url} class="block aspect-video overflow-hidden">
@@ -42,8 +63,8 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
   <div class="flex flex-col flex-1 p-5">
     {/* Category & Tags */}
     <div class="flex flex-wrap gap-2 mb-3">
-      <span class="text-xs font-medium px-2 py-1 rounded bg-cyber-cyan/10 text-cyber-cyan">
-        {category === 'tech' ? 'Tech' : 'Gear'}
+      <span class={`text-xs font-medium px-2 py-1 rounded ${categoryColors[category]}`}>
+        {categoryLabels[category]}
       </span>
       {tags.slice(0, 2).map((tag) => (
         <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
@@ -74,7 +95,7 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
         {readingTime && (
           <>
             <span>·</span>
-            <span>{readingTime} min read</span>
+            <span>{readingTime} 分钟阅读</span>
           </>
         )}
       </div>
@@ -101,4 +122,41 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Card reveal animation */
+  [data-animate-card] {
+    animation: cardReveal 0.6s ease-out forwards;
+  }
+
+  @keyframes cardReveal {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 </style>
+
+<script>
+  // Intersection Observer for card animations
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const card = entry.target as HTMLElement;
+          card.style.opacity = '1';
+          card.style.transform = 'translateY(0)';
+          observer.unobserve(card);
+        }
+      });
+    },
+    { threshold: 0.1, rootMargin: '50px' }
+  );
+
+  document.querySelectorAll('[data-animate-card]').forEach((card) => {
+    observer.observe(card);
+  });
+</script>

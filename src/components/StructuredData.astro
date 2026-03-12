@@ -1,0 +1,107 @@
+---
+/**
+ * SEO Structured Data Component
+ * Adds JSON-LD structured data for better search results
+ */
+interface Props {
+  type: 'Blog' | 'BlogPosting' | 'Person' | 'WebSite' | 'BreadcrumbList';
+  data?: Record<string, any>;
+}
+
+const { type, data = {} } = Astro.props;
+
+const siteUrl = 'https://your-domain.com';
+const siteName = "Ioodu's Blog";
+const authorName = 'Ioodu';
+
+// Generate structured data based on type
+function generateStructuredData() {
+  const base = {
+    '@context': 'https://schema.org',
+    '@type': type,
+  };
+
+  switch (type) {
+    case 'WebSite':
+      return {
+        ...base,
+        name: siteName,
+        url: siteUrl,
+        description: '关于编程、架构、AI 和生活方式的技术博客',
+        author: {
+          '@type': 'Person',
+          name: authorName,
+        },
+      };
+
+    case 'Blog':
+      return {
+        ...base,
+        name: siteName,
+        url: `${siteUrl}/blog`,
+        description: '技术文章、随笔和生活记录',
+        author: {
+          '@type': 'Person',
+          name: authorName,
+        },
+      };
+
+    case 'BlogPosting':
+      return {
+        ...base,
+        headline: data.title,
+        description: data.description,
+        url: `${siteUrl}${data.url}`,
+        datePublished: data.pubDate,
+        dateModified: data.updatedDate || data.pubDate,
+        author: {
+          '@type': 'Person',
+          name: authorName,
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: siteName,
+          logo: {
+            '@type': 'ImageObject',
+            url: `${siteUrl}/logo.png`,
+          },
+        },
+        image: data.cover ? `${siteUrl}${data.cover}` : `${siteUrl}/og-image.png`,
+        keywords: data.tags?.join(', '),
+        articleSection: data.category,
+        wordCount: data.wordCount,
+      };
+
+    case 'Person':
+      return {
+        ...base,
+        name: authorName,
+        url: siteUrl,
+        description: '软件工程师，专注于后端架构、TypeScript、AI',
+        jobTitle: 'Software Engineer',
+        sameAs: [
+          'https://github.com/chinadbo',
+          // Add social profiles here
+        ],
+      };
+
+    case 'BreadcrumbList':
+      return {
+        ...base,
+        itemListElement: data.items?.map((item: { name: string; url: string }, index: number) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          name: item.name,
+          item: `${siteUrl}${item.url}`,
+        })),
+      };
+
+    default:
+      return base;
+  }
+}
+
+const structuredData = generateStructuredData();
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(structuredData)} />

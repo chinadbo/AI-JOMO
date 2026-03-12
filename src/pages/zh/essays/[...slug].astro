@@ -8,70 +8,90 @@ import ReadingProgress from '../../../components/ReadingProgress.astro';
 import TableOfContents from '../../../components/TableOfContents.astro';
 import RelatedPosts from '../../../components/RelatedPosts.astro';
 import PageNavigation from '../../../components/PageNavigation.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import StructuredData from '../../../components/StructuredData.astro';
 import Giscus from '../../../components/Giscus.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('essays');
-  return posts.map((post) => ({
-    params: { slug: post.id },
-    props: { post },
-  }));
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
 }
 
 const { post } = Astro.props;
 const { Content, headings } = await render(post);
 
-const searchItems = [
-  {
-    title: post.data.title,
-    url: `/zh/essays/${post.id}`,
-    description: post.data.description,
-    tags: post.data.tags,
-    type: 'article' as const,
-    category: 'essays',
-  },
-];
+const searchItems = [{
+  title: post.data.title,
+  url: `/zh/essays/${post.id}`,
+  description: post.data.description,
+  tags: post.data.tags,
+  type: 'article' as const,
+  category: 'essays',
+}];
 
 // Get prev/next posts
 const allPosts = await getCollection('essays');
-const sortedPosts = allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+const sortedPosts = allPosts.filter(p => !p.data.draft).sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 const currentIndex = sortedPosts.findIndex((p) => p.id === post.id);
 const prevPost = currentIndex < sortedPosts.length - 1 ? sortedPosts[currentIndex + 1] : null;
 const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
 
-const formatDate = (date: Date) => {
-  return new Date(date).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-};
+const formatDate = (date: Date) => new Date(date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+const wordCount = post.body ? post.body.split(/\s+/).length : 0;
+
+const breadcrumbItems = [
+  { label: '首页', url: '/zh' },
+  { label: '随笔', url: '/zh/essays' },
+  { label: post.data.title, url: `/zh/essays/${post.id}`, isCurrent: true },
+];
 ---
 
 <BaseLayout
-  title={`${post.data.title} - Ioodu's Blog`}
+  title={post.data.title}
   description={post.data.description}
+  type="article"
+  publishedTime={post.data.pubDate}
+  modifiedTime={post.data.updatedDate}
+  author={post.data.author}
+  tags={post.data.tags}
+  canonical={`/zh/essays/${post.id}`}
   searchItems={searchItems}
 >
+  <StructuredData
+    type="BlogPosting"
+    data={{
+      title: post.data.title,
+      description: post.data.description,
+      url: `/zh/essays/${post.id}`,
+      pubDate: post.data.pubDate,
+      updatedDate: post.data.updatedDate,
+      tags: post.data.tags,
+      category: 'essays',
+      wordCount,
+    }}
+  />
+  <StructuredData
+    type="BreadcrumbList"
+    data={{ items: breadcrumbItems.map(({ label, url }) => ({ name: label, url })) }}
+  />
+
   <ReadingProgress />
   <TableOfContents headings={headings} />
 
   <article class="max-w-3xl mx-auto px-4 pt-12 pb-20">
-    {/* Header */}
+    <Breadcrumbs items={breadcrumbItems} />
+
     <header class="mb-8">
-      {/* Tags */}
       <div class="flex flex-wrap gap-2 mb-4">
         {post.data.tags.map((tag) => (
           <span class="tag">{tag}</span>
         ))}
       </div>
 
-      {/* Title */}
       <h1 class="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4 leading-tight">
         {post.data.title}
       </h1>
 
-      {/* Meta */}
       <div class="flex flex-wrap items-center gap-4 text-sm text-slate-500">
         <time datetime={post.data.pubDate.toISOString()}>
           {formatDate(post.data.pubDate)}
@@ -97,46 +117,33 @@ const formatDate = (date: Date) => {
       </div>
     </header>
 
-    {/* Cover Image */}
     {post.data.cover && (
-      <img
-        src={post.data.cover}
-        alt={post.data.title}
-        class="w-full aspect-video object-cover rounded-xl mb-8"
-      />
+      <img src={post.data.cover} alt={post.data.title} class="w-full aspect-video object-cover rounded-xl mb-8" />
     )}
 
-    {/* Content */}
     <div class="prose prose-lg dark:prose-invert max-w-none">
       <Content />
     </div>
 
-    {/* Footer */}
     <footer class="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
       <div class="flex items-center justify-between">
         <div class="text-sm text-slate-500">
-          作者: <span class="text-slate-900 dark:text-slate-100">{post.data.author}</span>
+          作者: <span class="text-slate-900 dark:text-slate-100">{post.data.author || 'Ioodu'}</span>
         </div>
-        <a
-          href="/zh/essays"
-          class="text-sm text-cyber-cyan hover:underline"
-        >
+        <a href="/zh/essays" class="text-sm text-cyber-cyan hover:underline">
           ← 返回随笔列表
         </a>
       </div>
     </footer>
 
-    {/* Related Posts */}
     <RelatedPosts currentPost={post} currentLang="zh" limit={3} />
 
-    {/* Page Navigation */}
     <PageNavigation
       prev={prevPost ? { title: prevPost.data.title, url: `/zh/essays/${prevPost.id}` } : undefined}
       next={nextPost ? { title: nextPost.data.title, url: `/zh/essays/${nextPost.id}` } : undefined}
       currentLang="zh"
     />
 
-    {/* Comments */}
     <Giscus />
   </article>
 </BaseLayout>

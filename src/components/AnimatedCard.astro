@@ -1,0 +1,71 @@
+---
+/**
+ * Animated Card Component
+ * Staggered reveal animation with hover effects
+ */
+interface Props {
+  index?: number;
+  class?: string;
+}
+
+const { index = 0, class: className = '' } = Astro.props;
+---
+
+<div
+  class={`animated-card opacity-0 translate-y-4 ${className}`}
+  style={`--delay: ${index * 100}ms`}
+>
+  <slot />
+</div>
+
+<script>
+  // Intersection Observer for reveal animation
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const card = entry.target as HTMLElement;
+          setTimeout(() => {
+            card.classList.add('animate-in');
+          }, parseInt(card.style.getPropertyValue('--delay') || '0'));
+          observer.unobserve(card);
+        }
+      });
+    },
+    { threshold: 0.1, rootMargin: '50px' }
+  );
+
+  document.querySelectorAll('.animated-card').forEach((card) => {
+    observer.observe(card);
+  });
+</script>
+
+<style>
+  .animated-card {
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+
+  .animated-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Hover glow effect */
+  .animated-card:hover {
+    transform: translateY(-4px);
+  }
+
+  .animated-card:hover::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(0, 245, 255, 0.3), rgba(59, 130, 246, 0.3));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+</style>

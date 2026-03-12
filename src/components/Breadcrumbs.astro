@@ -1,0 +1,43 @@
+---
+/**
+ * Breadcrumbs Component
+ * SEO-friendly breadcrumb navigation with schema markup
+ */
+interface BreadcrumbItem {
+  label: string;
+  url: string;
+  isCurrent?: boolean;
+}
+
+interface Props {
+  items: BreadcrumbItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<nav aria-label="Breadcrumb" class="py-4">
+  <ol class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+    {items.map((item, index) => (
+      <li class="flex items-center">
+        {index > 0 && (
+          <svg class="w-4 h-4 mx-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        )}
+        {item.isCurrent ? (
+          <span class="text-slate-900 dark:text-slate-100 font-medium" aria-current="page">
+            {item.label}
+          </span>
+        ) : (
+          <a
+            href={item.url}
+            class="hover:text-cyber-cyan transition-colors"
+          >
+            {item.label}
+          </a>
+        )}
+      </li>
+    ))}
+  </ol>
+</nav>
