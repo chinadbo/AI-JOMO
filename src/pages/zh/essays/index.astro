@@ -3,8 +3,8 @@
  * Essays List Page (Chinese)
  */
 import { getCollection } from 'astro:content';
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import PostCard from '../../components/PostCard.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PostCard from '../../../components/PostCard.astro';
 
 const posts = (await getCollection('essays'))
   .filter((post) => !post.data.draft)

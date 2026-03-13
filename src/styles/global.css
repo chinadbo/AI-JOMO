@@ -1,6 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap');
 
 /* Enable dark mode using class strategy */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -268,11 +268,11 @@ hr {
 
 /* Shiki 语法高亮主题适配 */
 pre.shiki {
-  @apply bg-slate-900 !important;
+  background-color: var(--shiki, #1e293b) !important;
 }
 
 pre.shiki code {
-  @apply bg-transparent !important;
+  background-color: transparent !important;
 }
 
 /* 代码块标题 */
