@@ -1,7 +1,0 @@
-name = "ai-jomo-blog"
-compatibility_date = "2025-03-10"
-pages_build_output_dir = "./dist"
-
-# Cloudflare Pages 静态站点配置
-[site]
-bucket = "./dist"
