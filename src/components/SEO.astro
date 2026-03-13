@@ -29,7 +29,7 @@ const {
   noindex = false,
 } = Astro.props;
 
-const siteUrl = 'https://your-domain.com';
+const siteUrl = 'https://blog.ioodu.com';
 const fullTitle = title.includes("Ioodu's") ? title : `${title} | Ioodu's Blog`;
 const fullImage = image.startsWith('http') ? image : `${siteUrl}${image}`;
 ---
@@ -57,7 +57,7 @@ const fullImage = image.startsWith('http') ? image : `${siteUrl}${image}`;
 <meta property="og:description" content={description} />
 <meta property="og:image" content={fullImage} />
 <meta property="og:site_name" content="Ioodu's Blog" />
-<meta property="og:locale" content="zh_CN" />
+<meta property="og:locale" content="en_US" />
 
 <!-- Article Specific -->
 {type === 'article' && publishedTime && (
@@ -95,8 +95,3 @@ const fullImage = image.startsWith('http') ? image : `${siteUrl}${image}`;
 <!-- Preconnect -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
-<!-- Alternate Languages -->
-<link rel="alternate" hreflang="zh" href={`${siteUrl}/zh${canonical || ''}`} />
-<link rel="alternate" hreflang="en" href={`${siteUrl}/en${canonical || ''}`} />
-<link rel="alternate" hreflang="x-default" href={`${siteUrl}${canonical || ''}`} />

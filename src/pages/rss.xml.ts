@@ -15,7 +15,7 @@ export async function GET() {
     .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
   // Site configuration
-  const siteUrl = 'https://your-domain.com';
+  const siteUrl = 'https://blog.ioodu.com';
 
   return rss({
     title: "Ioodu's Blog - Tech & Gear",

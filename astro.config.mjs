@@ -11,7 +11,7 @@ export default defineConfig({
   // 静态站点输出，兼容 Vercel / Cloudflare Pages
   output: 'static',
   // 站点 URL，请替换为你的实际域名
-  site: 'https://your-domain.com',
+  site: 'https://blog.ioodu.com',
 
   vite: {
     plugins: [tailwindcss()]
