@@ -3,7 +3,7 @@ import { Command } from 'cmdk';
 import { Search, Moon, Sun, Home, Github, X } from 'lucide-react';
 
 /**
- * 搜索结果项接口
+ * Search result item interface
  */
 interface SearchItem {
   title: string;
@@ -15,8 +15,8 @@ interface SearchItem {
 }
 
 /**
- * 命令面板组件
- * 通过 Cmd+K / Ctrl+K 唤起，支持搜索文章和内置命令
+ * Command Palette Component
+ * Triggered by Cmd+K / Ctrl+K, supports searching articles and built-in commands
  */
 interface CommandPaletteProps {
   items: SearchItem[];
@@ -26,7 +26,7 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  // 监听键盘快捷键
+  // Listen for keyboard shortcuts
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
@@ -42,10 +42,10 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
     return () => document.removeEventListener('keydown', down);
   }, []);
 
-  // 处理命令执行
+  // Handle command execution
   const handleSelect = useCallback((item: SearchItem) => {
     if (item.type === 'command') {
-      // 执行内置命令
+      // Execute built-in commands
       if (item.url === 'toggle-theme') {
         const isDark = document.documentElement.classList.contains('dark');
         if (isDark) {
@@ -61,40 +61,40 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
         window.open(item.url, '_blank');
       }
     } else {
-      // 跳转文章页
+      // Navigate to article page
       window.location.href = item.url;
     }
     setOpen(false);
   }, []);
 
-  // 内置命令列表
+  // Built-in commands list
   const commands: SearchItem[] = [
     {
-      title: '切换主题',
+      title: 'Toggle Theme',
       url: 'toggle-theme',
-      description: '在暗黑和亮色模式之间切换',
-      tags: ['设置'],
+      description: 'Switch between dark and light mode',
+      tags: ['Settings'],
       type: 'command',
     },
     {
-      title: '回到首页',
+      title: 'Go Home',
       url: 'go-home',
-      description: '返回网站首页',
-      tags: ['导航'],
+      description: 'Return to homepage',
+      tags: ['Navigation'],
       type: 'command',
     },
     {
-      title: 'GitHub 仓库',
+      title: 'GitHub Repository',
       url: 'https://github.com',
-      description: '访问 GitHub 仓库',
-      tags: ['外部链接'],
+      description: 'Visit GitHub repository',
+      tags: ['External Link'],
       type: 'command',
     },
     {
-      title: 'RSS 订阅',
+      title: 'RSS Feed',
       url: '/rss.xml',
-      description: '订阅 RSS 动态',
-      tags: ['订阅'],
+      description: 'Subscribe to RSS feed',
+      tags: ['Subscribe'],
       type: 'command',
     },
   ];
@@ -120,25 +120,25 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
 
   return (
     <div className="fixed inset-0 z-50">
-      {/* 遮罩层 */}
+      {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={() => setOpen(false)}
       />
 
-      {/* 命令面板 */}
+      {/* Command Palette */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-full max-w-xl">
         <Command
           className="glass rounded-xl overflow-hidden glow-cyan"
           shouldFilter={true}
         >
-          {/* 搜索输入框 */}
+          {/* Search Input */}
           <div className="flex items-center border-b border-slate-200 dark:border-slate-700 px-4">
             <Search className="w-5 h-5 text-slate-400" />
             <Command.Input
               value={search}
               onValueChange={setSearch}
-              placeholder="搜索文章或执行命令..."
+              placeholder="Search articles or run commands..."
               className="flex-1 px-3 py-4 bg-transparent outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
             <button onClick={() => setOpen(false)} className="p-1">
@@ -146,15 +146,15 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
             </button>
           </div>
 
-          {/* 结果列表 */}
+          {/* Results List */}
           <Command.List className="max-h-[400px] overflow-y-auto p-2">
             <Command.Empty className="py-6 text-center text-slate-500">
-              未找到匹配结果
+              No results found
             </Command.Empty>
 
-            {/* 内置命令组 */}
+            {/* Built-in Commands Group */}
             {!search && (
-              <Command.Group heading="命令" className="mb-2">
+              <Command.Group heading="Commands" className="mb-2">
                 {commands.map((cmd, index) => (
                   <Command.Item
                     key={index}
@@ -184,9 +184,9 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
               </Command.Group>
             )}
 
-            {/* 文章列表 */}
+            {/* Articles List */}
             {filteredItems.some((item) => item.type === 'article') && (
-              <Command.Group heading="文章" className="mb-2">
+              <Command.Group heading="Articles" className="mb-2">
                 {filteredItems
                   .filter((item) => item.type === 'article')
                   .map((item, index) => (
@@ -211,16 +211,16 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
             )}
           </Command.List>
 
-          {/* 底部提示 */}
+          {/* Footer Hints */}
           <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500 flex items-center gap-4">
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">↑↓</kbd> 导航
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">↑↓</kbd> Navigate
             </span>
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">↵</kbd> 确认
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">↵</kbd> Select
             </span>
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">esc</kbd> 关闭
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">esc</kbd> Close
             </span>
           </div>
         </Command>

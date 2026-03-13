@@ -1,33 +1,33 @@
 ---
 /**
- * Gear Reviews List Page (English)
+ * Tech Articles List Page
  */
 
 import { getCollection } from 'astro:content';
-import BaseLayout from '../../../layouts/BaseLayout.astro';
-import PostCard from '../../../components/PostCard.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
 
-const posts = (await getCollection('gear'))
+const posts = (await getCollection('tech'))
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
 const searchItems = posts.map((post) => ({
   title: post.data.title,
-  url: `/en/gear/${post.id}`,
+  url: `/tech/${post.id}`,
   description: post.data.description,
   tags: post.data.tags,
   type: 'article' as const,
-  category: 'gear',
+  category: 'tech',
 }));
 ---
 
-<BaseLayout title="Gear Reviews - Ioodu's Blog" description="EDC gear, gadgets, and product reviews" searchItems={searchItems}>
+<BaseLayout title="Tech Articles - Ioodu's Blog" description="Technical articles on programming, architecture, and AI" searchItems={searchItems}>
   <div class="max-w-6xl mx-auto px-4 py-12">
     <div class="mb-12">
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
-        <span class="text-electric-blue">#</span> Gear Reviews
+        <span class="text-cyber-cyan">#</span> Tech Articles
       </h1>
       <p class="text-slate-600 dark:text-slate-400">
-        EDC, gadgets, and product reviews
+        Exploring programming, architecture, and the future of technology
       </p>
     </div>
 
@@ -40,16 +40,16 @@ const searchItems = posts.map((post) => ({
             pubDate={post.data.pubDate}
             tags={post.data.tags}
             cover={post.data.cover}
-            url={`/en/gear/${post.id}`}
-            category="gear"
-            rating={post.data.rating}
+            url={`/tech/${post.id}`}
+            category="tech"
+            readingTime={post.data.readingTime}
           />
         ))}
       </div>
     ) : (
       <div class="text-center py-20">
-        <p class="text-slate-500 mb-4">No gear reviews yet</p>
-        <a href="/en/" class="text-electric-blue hover:underline">
+        <p class="text-slate-500 mb-4">No articles yet</p>
+        <a href="/" class="text-cyber-cyan hover:underline">
           Back to Home
         </a>
       </div>

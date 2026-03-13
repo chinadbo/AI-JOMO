@@ -14,7 +14,8 @@
       "WebSearch",
       "WebFetch(domain:developers.cloudflare.com)",
       "WebFetch(domain:docs.astro.build)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(find . -type f -name \"*.json\" -o -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \"*.jsx\" 2>/dev/null | head -50)"
     ]
   }
 }

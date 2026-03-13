@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { Moon, Sun } from 'lucide-react';
 
 /**
- * 主题切换组件
- * 实现暗黑/亮色主题切换，状态持久化到 localStorage
+ * Theme Toggle Component
+ * Implements dark/light theme toggle with localStorage persistence
  */
 export default function ThemeToggle() {
   const [isDark, setIsDark] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // 初始化：读取 localStorage 或系统偏好
+  // Initialize: read localStorage or system preference
   useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem('theme');
@@ -19,7 +19,7 @@ export default function ThemeToggle() {
     }
   }, []);
 
-  // 切换主题
+  // Toggle theme
   const toggleTheme = () => {
     const newIsDark = !isDark;
     setIsDark(newIsDark);
@@ -33,12 +33,12 @@ export default function ThemeToggle() {
     }
   };
 
-  // 避免水合不匹配
+  // Avoid hydration mismatch
   if (!mounted) {
     return (
       <button
         className="p-2 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
-        aria-label="切换主题"
+        aria-label="Toggle theme"
       >
         <Sun className="w-5 h-5" />
       </button>
@@ -49,7 +49,7 @@ export default function ThemeToggle() {
     <button
       onClick={toggleTheme}
       className="p-2 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
-      aria-label={isDark ? '切换到亮色模式' : '切换到暗黑模式'}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {isDark ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
     </button>

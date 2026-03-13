@@ -9,20 +9,11 @@ import ThemeToggle from '../components/ThemeToggle';
 import CommandPalette from '../components/CommandPalette';
 import SEO from '../components/SEO.astro';
 import StructuredData from '../components/StructuredData.astro';
-import { translations, type Language } from '../i18n';
 import '../styles/global.css';
 
 // Site configuration
 const siteUrl = 'https://your-domain.com';
-
-// Get language from URL path (e.g., /zh/about, /en/about)
-// Default to 'en' if no language prefix
 const pathname = Astro.url.pathname;
-const langMatch = pathname.match(/^\/(zh|en)(\/|$)/);
-const currentLang: Language = langMatch ? (langMatch[1] as Language) : 'en';
-
-// Get translations for current language
-const t = translations[currentLang];
 
 // Props interface
 interface Props {
@@ -60,22 +51,18 @@ const {
   noindex = false,
 } = Astro.props;
 
-// Navigation links with translations
+// Navigation links
 const navLinks = [
-  { href: `/${currentLang}/tech`, label: t.nav.tech },
-  { href: `/${currentLang}/essays`, label: t.nav.essays },
-  { href: `/${currentLang}/life`, label: t.nav.life },
-  { href: `/${currentLang}/gear`, label: t.nav.gear },
-  { href: `/${currentLang}/about`, label: t.nav.about },
+  { href: '/tech', label: 'Tech' },
+  { href: '/essays', label: 'Essays' },
+  { href: '/life', label: 'Life' },
+  { href: '/gear', label: 'Gear' },
+  { href: '/about', label: 'About' },
 ];
-
-// Update paths to include language prefix
-const homePath = `/${currentLang}`;
-const currentPath = pathname.replace(/^\/(zh|en)/, '') || '/';
 ---
 
 <!DOCTYPE html>
-<html lang={currentLang}>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -108,19 +95,6 @@ const currentPath = pathname.replace(/^\/(zh|en)/, '') || '/';
         document.documentElement.classList.add('dark');
       }
     </script>
-
-    <!-- Language detection for client-side -->
-    <script is:inline>
-      function getLang() {
-        const path = window.location.pathname;
-        const match = path.match(/^\/(zh|en)(\/|$)/);
-        if (match) return match[1];
-        const browserLang = navigator.language.toLowerCase();
-        if (browserLang.startsWith('zh')) return 'zh';
-        return 'en';
-      }
-      window.__lang__ = getLang();
-    </script>
   </head>
 
   <body class="min-h-screen flex flex-col">
@@ -128,7 +102,7 @@ const currentPath = pathname.replace(/^\/(zh|en)/, '') || '/';
     <header class="fixed top-0 left-0 right-0 z-40 glass" transition:persist>
       <nav class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         <!-- Left: Logo -->
-        <a href={homePath} class="flex items-center gap-2 group">
+        <a href="/" class="flex items-center gap-2 group">
           <div class="w-8 h-8 relative">
             <div class="absolute inset-0 grid grid-cols-4 grid-rows-4 gap-0.5">
               <div class="col-start-1 row-start-2 bg-cyber-cyan"></div>
@@ -157,22 +131,14 @@ const currentPath = pathname.replace(/^\/(zh|en)/, '') || '/';
           ))}
         </ul>
 
-        <!-- Right: Language Toggle + Theme Toggle + Command Palette -->
+        <!-- Right: Command Palette Trigger + Theme Toggle -->
         <div class="flex items-center gap-2">
-          <!-- Language Toggle -->
-          <a
-            href={currentLang === 'en' ? `/zh${currentPath === '/' ? '' : currentPath}` : `/en${currentPath === '/' ? '' : currentPath}`}
-            class="px-2 py-1 text-xs font-medium text-slate-500 hover:text-cyber-cyan transition-colors"
-          >
-            {currentLang === 'en' ? '中文' : 'EN'}
-          </a>
-
           <!-- Command Palette Trigger -->
           <button
             id="cmd-k-trigger"
             class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-cyber-cyan transition-colors text-sm"
           >
-            <span class="text-xs">{currentLang === 'en' ? 'Search' : '搜索'}</span>
+            <span class="text-xs">Search</span>
             <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">⌘K</kbd>
           </button>
 
@@ -193,13 +159,13 @@ const currentPath = pathname.replace(/^\/(zh|en)/, '') || '/';
         <div class="flex flex-col md:flex-row items-center justify-between gap-4">
           <!-- Copyright -->
           <p class="text-sm text-slate-500">
-            &copy; {new Date().getFullYear()} {t.footer.copyright}
+            &copy; {new Date().getFullYear()} Ioodu. All rights reserved.
           </p>
 
           <!-- Links -->
           <div class="flex items-center gap-4">
             <a
-              href={`/${currentLang}/rss.xml`}
+              href="/rss.xml"
               class="text-sm text-slate-500 hover:text-cyber-cyan transition-colors"
             >
               RSS

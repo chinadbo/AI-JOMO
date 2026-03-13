@@ -1,38 +1,38 @@
 ---
 /**
- * Tech Articles List Page (English)
+ * Essays List Page
  */
 
 import { getCollection } from 'astro:content';
-import BaseLayout from '../../../layouts/BaseLayout.astro';
-import PostCard from '../../../components/PostCard.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
 
-const posts = (await getCollection('tech'))
+const posts = (await getCollection('essays'))
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
 const searchItems = posts.map((post) => ({
   title: post.data.title,
-  url: `/en/tech/${post.id}`,
+  url: `/essays/${post.id}`,
   description: post.data.description,
   tags: post.data.tags,
   type: 'article' as const,
-  category: 'tech',
+  category: 'essays',
 }));
 ---
 
-<BaseLayout title="Tech Articles - Ioodu's Blog" description="Technical articles on programming, architecture, and AI" searchItems={searchItems}>
+<BaseLayout title="Essays - Ioodu's Blog" description="Thoughts on technology, career, and life" searchItems={searchItems}>
   <div class="max-w-6xl mx-auto px-4 py-12">
     <div class="mb-12">
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
-        <span class="text-cyber-cyan">#</span> Tech Articles
+        <span class="text-cyber-cyan">#</span> Essays
       </h1>
       <p class="text-slate-600 dark:text-slate-400">
-        Exploring programming, architecture, and the future of technology
+        Thoughts on technology, career, and life
       </p>
     </div>
 
     {posts.length > 0 ? (
-      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="grid md:grid-cols-2 gap-6">
         {posts.map((post) => (
           <PostCard
             title={post.data.title}
@@ -40,16 +40,16 @@ const searchItems = posts.map((post) => ({
             pubDate={post.data.pubDate}
             tags={post.data.tags}
             cover={post.data.cover}
-            url={`/en/tech/${post.id}`}
-            category="tech"
+            url={`/essays/${post.id}`}
+            category="essays"
             readingTime={post.data.readingTime}
           />
         ))}
       </div>
     ) : (
       <div class="text-center py-20">
-        <p class="text-slate-500 mb-4">No articles yet</p>
-        <a href="/en/" class="text-cyber-cyan hover:underline">
+        <p class="text-slate-500 mb-4">No essays yet</p>
+        <a href="/" class="text-cyber-cyan hover:underline">
           Back to Home
         </a>
       </div>

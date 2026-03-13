@@ -1,15 +1,17 @@
 import { getCollection } from 'astro:content';
 
 /**
- * 静态搜索索引生成器
- * 在构建时生成包含所有文章 title、url、tags、description 的 JSON
+ * Static search index generator
+ * Generates JSON with all article titles, urls, tags, descriptions at build time
  */
 export async function GET() {
-  // 获取所有文章
+  // Get all articles
   const techPosts = await getCollection('tech');
   const gearPosts = await getCollection('gear');
+  const essaysPosts = await getCollection('essays');
+  const lifePosts = await getCollection('life');
 
-  // 构建搜索索引
+  // Build search index
   const searchIndex = [
     ...techPosts.map((post) => ({
       title: post.data.title,
@@ -26,6 +28,22 @@ export async function GET() {
       tags: post.data.tags,
       type: 'article' as const,
       category: 'gear',
+    })),
+    ...essaysPosts.map((post) => ({
+      title: post.data.title,
+      url: `/essays/${post.id}`,
+      description: post.data.description,
+      tags: post.data.tags,
+      type: 'article' as const,
+      category: 'essays',
+    })),
+    ...lifePosts.map((post) => ({
+      title: post.data.title,
+      url: `/life/${post.id}`,
+      description: post.data.description,
+      tags: post.data.tags,
+      type: 'article' as const,
+      category: 'life',
     })),
   ];
 
