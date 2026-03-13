@@ -1,0 +1,250 @@
+---
+/**
+ * 3D Interactive Tag Cloud
+ * Sphere-shaped tag cloud with mouse interaction
+ */
+
+interface Props {
+  tags?: Array<{
+    name: string;
+    count: number;
+    url: string;
+  }>;
+  class?: string;
+}
+
+const { tags = [], class: className = '' } = Astro.props;
+
+// Calculate tag sizes based on count
+const maxCount = Math.max(...tags.map(t => t.count), 1);
+const minCount = Math.min(...tags.map(t => t.count), 1);
+
+const normalizedTags = tags.map(tag => ({
+  ...tag,
+  size: 0.8 + (tag.count - minCount) / (maxCount - minCount) * 0.7,
+  opacity: 0.6 + (tag.count - minCount) / (maxCount - minCount) * 0.4,
+}));
+---
+
+<div class={`tag-cloud-3d ${className}`} data-tags={JSON.stringify(normalizedTags)}>
+  <div class="tag-sphere-container">
+    <div class="tag-sphere" data-sphere>
+      {normalizedTags.map((tag, index) => {
+        // Calculate spherical coordinates
+        const phi = Math.acos(-1 + (2 * index) / normalizedTags.length);
+        const theta = Math.sqrt(normalizedTags.length * Math.PI) * phi;
+
+        // Convert to Cartesian coordinates
+        const x = Math.cos(theta) * Math.sin(phi);
+        const y = Math.sin(theta) * Math.sin(phi);
+        const z = Math.cos(phi);
+
+        return (
+          <a
+            href={tag.url}
+            class="tag-item"
+            data-tag-index={index}
+            data-x={x}
+            data-y={y}
+            data-z={z}
+            style={`
+              --tag-size: ${tag.size};
+              --tag-opacity: ${tag.opacity};
+              --x: ${x};
+              --y: ${y};
+              --z: ${z};
+            `}
+          >
+            <span class="tag-text">{tag.name}</span>
+            <span class="tag-count">{tag.count}</span>
+          </a>
+        );
+      })}
+    </div>
+  </div>
+
+  <div class="tag-cloud-controls">
+    <button class="control-btn" data-action="pause" title="暂停/播放">
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+      </svg>
+    </button>
+    <button class="control-btn" data-action="reset" title="重置">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<style>
+  .tag-cloud-3d {
+    @apply relative;
+    perspective: 1000px;
+  }
+
+  .tag-sphere-container {
+    @apply relative w-full h-96;
+    transform-style: preserve-3d;
+  }
+
+  .tag-sphere {
+    @apply absolute inset-0 flex items-center justify-center;
+    transform-style: preserve-3d;
+    animation: rotate 30s linear infinite;
+  }
+
+  .tag-sphere.paused {
+    animation-play-state: paused;
+  }
+
+  @keyframes rotate {
+    from {
+      transform: rotateY(0deg) rotateX(0deg);
+    }
+    to {
+      transform: rotateY(360deg) rotateX(360deg);
+    }
+  }
+
+  .tag-item {
+    @apply absolute px-3 py-1.5 rounded-full text-sm font-medium;
+    @apply bg-slate-100/50 dark:bg-slate-800/50;
+    @apply backdrop-blur-sm border border-slate-200 dark:border-slate-700;
+    @apply text-slate-700 dark:text-slate-300;
+    @apply transition-all duration-300;
+    @apply hover:text-cyber-cyan hover:border-cyber-cyan/50;
+    @apply hover:scale-110;
+
+    font-size: calc(0.75rem * var(--tag-size));
+    opacity: var(--tag-opacity);
+
+    transform: translate3d(
+      calc(var(--x) * 150px),
+      calc(var(--y) * 150px),
+      calc(var(--z) * 150px)
+    );
+  }
+
+  .tag-item:hover {
+    @apply z-50;
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(0, 245, 255, 0.3);
+  }
+
+  .tag-text {
+    @apply mr-1;
+  }
+
+  .tag-count {
+    @apply text-xs text-slate-400;
+  }
+
+  .tag-cloud-controls {
+    @apply absolute bottom-4 right-4 flex gap-2;
+  }
+
+  .control-btn {
+    @apply p-2 rounded-lg bg-slate-100 dark:bg-slate-800;
+    @apply text-slate-600 dark:text-slate-400;
+    @apply hover:text-cyber-cyan hover:bg-slate-200 dark:hover:bg-slate-700;
+    @apply transition-colors;
+  }
+</style>
+
+<script>
+  (function() {
+    const container = document.querySelector('.tag-cloud-3d');
+    if (!container) return;
+
+    const sphere = container.querySelector('[data-sphere]') as HTMLElement;
+    const pauseBtn = container.querySelector('[data-action="pause"]') as HTMLButtonElement;
+    const resetBtn = container.querySelector('[data-action="reset"]') as HTMLButtonElement;
+
+    let isPaused = false;
+    let rotationX = 0;
+    let rotationY = 0;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+
+    // Pause/Play
+    pauseBtn?.addEventListener('click', () => {
+      isPaused = !isPaused;
+      if (isPaused) {
+        sphere.classList.add('paused');
+        pauseBtn.innerHTML = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+      } else {
+        sphere.classList.remove('paused');
+        pauseBtn.innerHTML = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>`;
+      }
+    });
+
+    // Reset
+    resetBtn?.addEventListener('click', () => {
+      sphere.style.transform = '';
+      rotationX = 0;
+      rotationY = 0;
+    });
+
+    // Mouse drag to rotate
+    container.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      sphere.classList.add('paused');
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+
+      rotationY += deltaX * 0.5;
+      rotationX -= deltaY * 0.5;
+
+      sphere.style.transform = `rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+      if (!isPaused) {
+        sphere.classList.remove('paused');
+      }
+    });
+
+    // Touch support
+    container.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      sphere.classList.add('paused');
+    });
+
+    container.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+
+      const deltaX = e.touches[0].clientX - startX;
+      const deltaY = e.touches[0].clientY - startY;
+
+      rotationY += deltaX * 0.5;
+      rotationX -= deltaY * 0.5;
+
+      sphere.style.transform = `rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    });
+
+    container.addEventListener('touchend', () => {
+      isDragging = false;
+      if (!isPaused) {
+        sphere.classList.remove('paused');
+      }
+    });
+  })();
+</script>

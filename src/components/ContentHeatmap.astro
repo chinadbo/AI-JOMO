@@ -1,0 +1,173 @@
+---
+/**
+ * Content Heatmap Component
+ * GitHub-style contribution heatmap showing publishing activity
+ */
+
+interface Props {
+  posts?: Array<{
+    pubDate: Date;
+  }>;
+  class?: string;
+}
+
+const { posts = [], class: className = '' } = Astro.props;
+
+// Generate last 365 days
+const today = new Date();
+const days: Array<{ date: Date; count: number }> = [];
+
+for (let i = 364; i >= 0; i--) {
+  const date = new Date(today);
+  date.setDate(date.getDate() - i);
+
+  // Count posts on this date
+  const count = posts.filter(post => {
+    const postDate = new Date(post.pubDate);
+    return postDate.toDateString() === date.toDateString();
+  }).length;
+
+  days.push({ date, count });
+}
+
+// Group by weeks (53 weeks)
+const weeks: Array<Array<{ date: Date; count: number }>> = [];
+for (let i = 0; i < days.length; i += 7) {
+  weeks.push(days.slice(i, i + 7));
+}
+
+// Get intensity class based on count
+function getIntensityClass(count: number): string {
+  if (count === 0) return 'bg-slate-200 dark:bg-slate-800';
+  if (count === 1) return 'bg-cyber-cyan/30';
+  if (count === 2) return 'bg-cyber-cyan/50';
+  if (count === 3) return 'bg-cyber-cyan/70';
+  return 'bg-cyber-cyan';
+}
+
+// Get month labels
+const months: Array<{ label: string; weekIndex: number }> = [];
+weeks.forEach((week, weekIndex) => {
+  const firstDay = week[0];
+  if (firstDay && firstDay.date.getDate() <= 7) {
+    const monthLabel = firstDay.date.toLocaleDateString('zh-CN', { month: 'short' });
+    if (months.length === 0 || months[months.length - 1].label !== monthLabel) {
+      months.push({ label: monthLabel, weekIndex });
+    }
+  }
+});
+
+// Calculate stats
+const totalPosts = posts.length;
+const activeDays = days.filter(d => d.count > 0).length;
+const maxStreak = (() => {
+  let max = 0;
+  let current = 0;
+  days.forEach(day => {
+    if (day.count > 0) {
+      current++;
+      max = Math.max(max, current);
+    } else {
+      current = 0;
+    }
+  });
+  return max;
+})();
+---
+
+<div class={`heatmap-container ${className}`}>
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="font-display text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+      <svg class="w-5 h-5 text-cyber-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+      内容发布热力图
+    </h3>
+    <div class="flex items-center gap-4 text-sm text-slate-500">
+      <span>{totalPosts} 篇文章</span>
+      <span>{activeDays} 个活跃日</span>
+      <span>最长连续 {maxStreak} 天</span>
+    </div>
+  </div>
+
+  <div class="heatmap-wrapper overflow-x-auto pb-2">
+    <div class="heatmap-grid" style={`grid-template-columns: repeat(${weeks.length}, 1fr);`}>
+      {/* Month labels */}
+      <div class="col-span-full flex text-xs text-slate-500 mb-1">
+        {months.map((month) => (
+          <span style={`margin-left: ${month.weekIndex * 14}px`}>{month.label}</span>
+        ))}
+      </div>
+
+      {/* Heatmap cells */}
+      {weeks.map((week, weekIndex) => (
+        <div class="flex flex-col gap-1">
+          {week.map((day, dayIndex) => (
+            <div
+              class={`heatmap-cell w-3 h-3 rounded-sm ${getIntensityClass(day.count)} transition-all duration-200 hover:ring-2 hover:ring-cyber-cyan/50`}
+              data-date={day.date.toISOString().split('T')[0]}
+              data-count={day.count}
+              title={`${day.date.toLocaleDateString('zh-CN')} · ${day.count} 篇文章`}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+
+    {/* Legend */}
+    <div class="flex items-center gap-2 mt-3 text-xs text-slate-500">
+      <span>少</span>
+      <div class="flex gap-1">
+        <div class="w-3 h-3 rounded-sm bg-slate-200 dark:bg-slate-800"></div>
+        <div class="w-3 h-3 rounded-sm bg-cyber-cyan/30"></div>
+        <div class="w-3 h-3 rounded-sm bg-cyber-cyan/50"></div>
+        <div class="w-3 h-3 rounded-sm bg-cyber-cyan/70"></div>
+        <div class="w-3 h-3 rounded-sm bg-cyber-cyan"></div>
+      </div>
+      <span>多</span>
+    </div>
+  </div>
+</div>
+
+<style>
+  .heatmap-container {
+    @apply glass rounded-xl p-6;
+  }
+
+  .heatmap-wrapper {
+    @apply relative;
+  }
+
+  .heatmap-grid {
+    @apply grid gap-1;
+    min-width: max-content;
+  }
+
+  .heatmap-cell {
+    @apply cursor-pointer;
+  }
+
+  .heatmap-cell:hover {
+    @apply transform scale-110;
+  }
+
+  /* Tooltip */
+  .heatmap-cell[data-count]:hover::after {
+    content: attr(title);
+    @apply absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-xs rounded whitespace-nowrap z-10;
+  }
+</style>
+
+<script>
+  // Add click handler to cells
+  document.querySelectorAll('.heatmap-cell').forEach((cell) => {
+    cell.addEventListener('click', () => {
+      const date = cell.getAttribute('data-date');
+      const count = cell.getAttribute('data-count');
+      if (count && parseInt(count) > 0) {
+        // Could navigate to archive page filtered by date
+        console.log(`Clicked on ${date} with ${count} posts`);
+      }
+    });
+  });
+</script>

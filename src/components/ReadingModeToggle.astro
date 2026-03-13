@@ -1,0 +1,235 @@
+---
+/**
+ * Reading Mode Toggle Component
+ * Switch between Focus / Eyecare / Cyber reading modes
+ */
+
+interface Props {
+  class?: string;
+}
+
+const { class: className = '' } = Astro.props;
+
+const modes = [
+  {
+    id: 'focus',
+    label: '专注',
+    icon: '🎯',
+    description: '高对比度，极致专注',
+  },
+  {
+    id: 'eyecare',
+    label: '护眼',
+    icon: '👁️',
+    description: '暖色调，减少蓝光',
+  },
+  {
+    id: 'cyber',
+    label: '赛博',
+    icon: '💻',
+    description: '深色背景，青色高亮',
+  },
+];
+---
+
+<div class={`reading-mode-toggle ${className}`} data-reading-toggle>
+  <div class="mode-selector">
+    {modes.map((mode) => (
+      <button
+        class="mode-btn"
+        data-mode={mode.id}
+        title={mode.description}
+      >
+        <span class="mode-icon">{mode.icon}</span>
+        <span class="mode-label">{mode.label}</span>
+      </button>
+    ))}
+  </div>
+
+  <div class="mode-indicator">
+    <div class="indicator-bar" data-indicator></div>
+  </div>
+</div>
+
+<style>
+  .reading-mode-toggle {
+    @apply inline-flex flex-col gap-2;
+  }
+
+  .mode-selector {
+    @apply flex gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800;
+  }
+
+  .mode-btn {
+    @apply relative flex items-center gap-2 px-4 py-2 rounded-lg;
+    @apply text-sm font-medium text-slate-600 dark:text-slate-400;
+    @apply transition-all duration-300;
+    @apply hover:text-slate-900 dark:hover:text-slate-200;
+  }
+
+  .mode-btn:hover {
+    @apply bg-white dark:bg-slate-700;
+  }
+
+  .mode-btn.active {
+    @apply text-cyber-cyan;
+    @apply bg-white dark:bg-slate-700;
+    @apply shadow-sm;
+  }
+
+  .mode-icon {
+    @apply text-lg;
+  }
+
+  .mode-label {
+    @apply hidden sm:inline;
+  }
+
+  .mode-indicator {
+    @apply h-1 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden;
+  }
+
+  .indicator-bar {
+    @apply h-full bg-cyber-cyan rounded-full transition-all duration-300;
+    width: 33.33%;
+    transform: translateX(0);
+  }
+
+  .indicator-bar[data-mode="focus"] {
+    transform: translateX(0);
+  }
+
+  .indicator-bar[data-mode="eyecare"] {
+    transform: translateX(100%);
+  }
+
+  .indicator-bar[data-mode="cyber"] {
+    transform: translateX(200%);
+  }
+
+  /* Mode-specific styles applied to body */
+  :global(body[data-reading-mode="focus"]) {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --accent: #00f5ff;
+    --font-weight: 400;
+    --line-height: 1.8;
+    --letter-spacing: 0.01em;
+  }
+
+  :global(body[data-reading-mode="eyecare"]) {
+    --bg-primary: #faf8f5;
+    --bg-secondary: #f5f0e8;
+    --text-primary: #3d3832;
+    --text-secondary: #6b6560;
+    --accent: #d97706;
+    --font-weight: 400;
+    --line-height: 1.9;
+    --letter-spacing: 0.02em;
+  }
+
+  :global(body[data-reading-mode="cyber"]) {
+    --bg-primary: #020617;
+    --bg-secondary: #0f172a;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --accent: #00f5ff;
+    --font-weight: 300;
+    --line-height: 1.8;
+    --letter-spacing: 0.02em;
+  }
+
+  :global(body[data-reading-mode]) {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-weight: var(--font-weight);
+    line-height: var(--line-height);
+    letter-spacing: var(--letter-spacing);
+    transition: background-color 0.5s ease, color 0.5s ease;
+  }
+
+  :global(body[data-reading-mode] .prose) {
+    color: var(--text-primary);
+  }
+
+  :global(body[data-reading-mode] .prose h1,
+          body[data-reading-mode] .prose h2,
+          body[data-reading-mode] .prose h3) {
+    color: var(--text-primary);
+  }
+
+  :global(body[data-reading-mode] .prose p) {
+    color: var(--text-secondary);
+  }
+
+  :global(body[data-reading-mode] a) {
+    color: var(--accent);
+  }
+
+  :global(body[data-reading-mode] code) {
+    background-color: var(--bg-secondary);
+  }
+
+  :global(body[data-reading-mode] pre) {
+    background-color: var(--bg-secondary);
+  }
+
+  :global(body[data-reading-mode] blockquote) {
+    border-left-color: var(--accent);
+    background-color: var(--bg-secondary);
+  }
+</style>
+
+<script>
+  (function() {
+    const toggle = document.querySelector('[data-reading-toggle]');
+    if (!toggle) return;
+
+    const buttons = toggle.querySelectorAll('[data-mode]');
+    const indicator = toggle.querySelector('[data-indicator]') as HTMLElement;
+    const body = document.body;
+
+    // Load saved preference
+    const savedMode = localStorage.getItem('reading-mode') || 'cyber';
+    setMode(savedMode);
+
+    // Click handlers
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mode = btn.getAttribute('data-mode');
+        if (mode) {
+          setMode(mode);
+          localStorage.setItem('reading-mode', mode);
+        }
+      });
+    });
+
+    function setMode(mode: string) {
+      // Update body attribute
+      body.setAttribute('data-reading-mode', mode);
+
+      // Update active button
+      buttons.forEach((btn) => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-mode') === mode) {
+          btn.classList.add('active');
+        }
+      });
+
+      // Update indicator
+      if (indicator) {
+        indicator.setAttribute('data-mode', mode);
+      }
+
+      // Sync with dark mode
+      if (mode === 'cyber') {
+        document.documentElement.classList.add('dark');
+      } else if (mode === 'focus') {
+        document.documentElement.classList.remove('dark');
+      }
+      // eyecare mode keeps current dark mode setting
+    }
+  })();
+</script>
