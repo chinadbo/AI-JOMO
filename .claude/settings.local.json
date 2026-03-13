@@ -5,7 +5,16 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(npx skills:*)",
+      "Bash(npm cache:*)",
+      "Bash(wrangler --version 2>/dev/null || npx wrangler --version 2>/dev/null || echo \"Wrangler not installed\")",
+      "Bash(sudo chown:*)",
+      "Bash(npx wrangler:*)",
+      "WebSearch",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "WebFetch(domain:docs.astro.build)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }
