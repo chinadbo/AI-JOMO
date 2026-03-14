@@ -1,0 +1,807 @@
+---
+title: "测试策略实战：从单元测试到 E2E 的完整金字塔"
+description: "为什么你的测试总是跟不上代码变更？分享我团队 3 年迭代出的测试策略，包括测试金字塔实践、Mock 的艺术、以及如何让测试成为开发加速器而非负担。"
+pubDate: 2026-03-26
+updatedDate: 2026-03-26
+tags:
+  - Testing
+  - TDD
+  - Unit Test
+  - Integration Test
+  - E2E
+  - Quality Assurance
+categories:
+  - Engineering
+  - Quality
+readingTime: 22
+draft: false
+author: Ioodu
+---
+
+## 那个让团队停摆的 Bug
+
+2023 年 10 月，凌晨 3 点。
+
+支付系统突然崩溃，订单无法完成。我们花了 6 小时才定位问题：一个两周前的重构改动了订单状态机，但只更新了代码，没更新对应的单元测试。测试通过了，但生产环境炸了。
+
+事后复盘，我问团队："我们的测试覆盖率 85%，为什么没 catch 住这个问题？"
+
+答案是：**我们测了数量，没测质量。**
+
+从那以后，我们彻底重构了测试策略。这篇文章分享我们 3 年迭代出的方法论。
+
+## 测试金字塔：被误解的经典
+
+你可能听过测试金字塔：
+
+```
+        /\
+       /  \     E2E (少量)
+      /____\
+     /      \   集成测试 (中等)
+    /        \
+   /__________\ 单元测试 (大量)
+```
+
+但问题在于：**大多数人只画出了形状，没理解背后的原理。**
+
+### 金字塔的真正含义
+
+| 层级 | 成本 | 速度 | 稳定性 | 定位问题 | 目标 |
+|------|------|------|--------|----------|------|
+| 单元测试 | 低 | 快 (< 100ms) | 高 | 精确 | 验证逻辑正确性 |
+| 集成测试 | 中 | 中 (< 1s) | 中 | 模块级 | 验证模块协作 |
+| E2E 测试 | 高 | 慢 (> 5s) | 低 | 系统级 | 验证用户场景 |
+
+**核心原则**：用最低成本发现最多问题。
+
+## 单元测试：打好基础
+
+### 单元测试的 FIRST 原则
+
+- **F**ast：快速执行，毫秒级
+- **I**ndependent：测试之间不依赖
+- **R**epeatable：任何环境结果一致
+- **S**elf-validating：自动断言，无需人工检查
+- **T**imely：及时编写（最好先于代码）
+
+### 测试什么？不测试什么？
+
+**测试这些**：
+- 业务逻辑和算法
+- 状态转换
+- 边界条件
+- 错误处理
+
+**不测试这些**：
+- 框架自带功能（React 渲染、Express 路由）
+- 第三方库（moment.js、lodash）
+- 纯 getter/setter
+- 简单的数据转换
+
+### 好的单元测试示例
+
+```typescript
+// 购物车服务 - 业务逻辑
+class CartService {
+  calculateTotal(items: CartItem[]): Total {
+    const subtotal = items.reduce((sum, item) => {
+      return sum + item.price * item.quantity;
+    }, 0);
+
+    const discount = this.calculateDiscount(items, subtotal);
+    const tax = (subtotal - discount) * 0.08;
+    const total = subtotal - discount + tax;
+
+    return { subtotal, discount, tax, total };
+  }
+
+  private calculateDiscount(
+    items: CartItem[],
+    subtotal: number
+  ): number {
+    // 满 100 减 10
+    if (subtotal >= 100) {
+      return Math.floor(subtotal / 100) * 10;
+    }
+    return 0;
+  }
+}
+
+// ✅ 好的测试：关注业务规则
+describe('CartService', () => {
+  describe('calculateTotal', () => {
+    it('应该正确计算小计', () => {
+      const items = [
+        { id: '1', price: 50, quantity: 2 },
+        { id: '2', price: 30, quantity: 1 }
+      ];
+
+      const result = cartService.calculateTotal(items);
+
+      expect(result.subtotal).toBe(130); // 50*2 + 30*1
+    });
+
+    it('满 100 应该应用折扣', () => {
+      const items = [
+        { id: '1', price: 60, quantity: 2 } // 120
+      ];
+
+      const result = cartService.calculateTotal(items);
+
+      expect(result.discount).toBe(10); // 满 100 减 10
+      expect(result.total).toBe(118.8); // (120-10)*1.08
+    });
+
+    it('未满 100 不应有折扣', () => {
+      const items = [
+        { id: '1', price: 40, quantity: 2 } // 80
+      ];
+
+      const result = cartService.calculateTotal(items);
+
+      expect(result.discount).toBe(0);
+      expect(result.total).toBe(86.4); // 80*1.08
+    });
+
+    it('空购物车应该返回 0', () => {
+      const result = cartService.calculateTotal([]);
+
+      expect(result).toEqual({
+        subtotal: 0,
+        discount: 0,
+        tax: 0,
+        total: 0
+      });
+    });
+  });
+});
+```
+
+### Mock 的艺术
+
+**何时 Mock**？
+- 外部依赖（数据库、API、文件系统）
+- 时间相关逻辑
+- 随机数生成
+
+**何时不 Mock**？
+- 纯函数（无副作用的函数）
+- 值对象（DTO、Entity）
+- 测试目标本身
+
+**Mock 陷阱**：
+
+```typescript
+// ❌ 不好的测试：过度 Mock
+class OrderService {
+  async createOrder(userId: string, items: Item[]) {
+    const user = await this.userService.getUser(userId); // Mock
+    const price = this.pricingService.calculate(items); // Mock
+    const discount = this.discountService.getDiscount(user); // Mock
+    const order = { user, items, price, discount }; // 测的全是 Mock
+    await this.orderRepository.save(order); // Mock
+    return order;
+  }
+}
+
+describe('OrderService', () => {
+  it('应该创建订单', async () => {
+    userService.getUser.mockResolvedValue({ id: '1' });
+    pricingService.calculate.mockReturnValue(100);
+    discountService.getDiscount.mockReturnValue(10);
+
+    const order = await orderService.createOrder('1', items);
+
+    expect(order.price).toBe(100); // 测的是 Mock 的返回值
+  });
+});
+```
+
+**问题**：这个测试测的是 Mock，不是真实逻辑。如果 `pricingService.calculate` 的实现变了，测试仍然通过，但生产环境可能出错。
+
+**改进**：
+
+```typescript
+// ✅ 更好的做法：直接测试计算逻辑，或测试集成
+describe('OrderService', () => {
+  describe('价格计算', () => {
+    it('应该正确计算订单总价', () => {
+      const items = [
+        { price: 50, quantity: 2 },
+        { price: 30, quantity: 1 }
+      ];
+
+      // 直接测试计算逻辑，不通过 Mock
+      const total = calculateOrderTotal(items);
+
+      expect(total).toBe(130);
+    });
+  });
+
+  describe('集成测试', () => {
+    it('应该完整创建订单并保存到数据库', async () => {
+      // 使用真实数据库（测试实例）
+      const order = await orderService.createOrder('1', items);
+
+      // 验证数据库状态
+      const savedOrder = await db.orders.findById(order.id);
+      expect(savedOrder).toEqual(expect.objectContaining({
+        userId: '1',
+        status: 'pending'
+      }));
+    });
+  });
+});
+```
+
+## 集成测试：验证协作
+
+### 集成测试的范围
+
+集成测试验证**多个模块协同工作**，但**不涉及外部真实系统**（数据库用测试实例，API 用 Mock Server）。
+
+```typescript
+// 集成测试：API 路由 + 服务 + 数据库
+describe('POST /api/orders', () => {
+  beforeAll(async () => {
+    // 使用测试数据库
+    await db.connect(process.env.TEST_DATABASE_URL);
+  });
+
+  afterAll(async () => {
+    await db.disconnect();
+  });
+
+  beforeEach(async () => {
+    // 每个测试前清理数据
+    await db.orders.deleteMany();
+    await db.users.deleteMany();
+  });
+
+  it('应该创建订单并返回 201', async () => {
+    // 准备测试数据
+    const user = await db.users.create({
+      name: 'Test User',
+      email: 'test@example.com'
+    });
+
+    const response = await request(app)
+      .post('/api/orders')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        userId: user.id,
+        items: [
+          { productId: '1', quantity: 2, price: 50 }
+        ]
+      });
+
+    // 验证响应
+    expect(response.status).toBe(201);
+    expect(response.body).toHaveProperty('id');
+    expect(response.body.status).toBe('pending');
+
+    // 验证数据库状态
+    const order = await db.orders.findById(response.body.id);
+    expect(order).toBeTruthy();
+    expect(order.total).toBe(100);
+  });
+
+  it('库存不足应该返回 400', async () => {
+    const user = await db.users.create({...});
+
+    // Mock 库存服务返回不足
+    inventoryService.checkAvailability.mockResolvedValue({
+      available: false,
+      missing: ['1']
+    });
+
+    const response = await request(app)
+      .post('/api/orders')
+      .send({ userId: user.id, items: [...] });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('库存不足');
+
+    // 验证数据库没有创建订单
+    const orders = await db.orders.find({ userId: user.id });
+    expect(orders).toHaveLength(0);
+  });
+});
+```
+
+### 测试数据库策略
+
+**策略一：内存数据库**（最快，但不真实）
+
+```typescript
+import { MongoMemoryServer } from 'mongodb-memory-server';
+
+const mongod = new MongoMemoryServer();
+const uri = await mongod.getUri();
+```
+
+**策略二：Docker 测试数据库**（推荐）
+
+```yaml
+# docker-compose.test.yml
+version: '3'
+services:
+  postgres-test:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    ports:
+      - "5433:5432"
+```
+
+**策略三：事务回滚**（最快，共享数据库）
+
+```typescript
+beforeEach(async () => {
+  await db.transaction(async (trx) => {
+    // 所有操作在事务中
+    // 测试结束后自动回滚
+  });
+});
+```
+
+### API 契约测试
+
+当服务间通信复杂时，使用契约测试：
+
+```typescript
+// 消费者驱动的契约测试
+import { Pact } from '@pact-foundation/pact';
+
+const provider = new Pact({
+  consumer: 'OrderService',
+  provider: 'PaymentService'
+});
+
+describe('PaymentService Contract', () => {
+  it('应该处理支付请求', async () => {
+    await provider
+      .given('payment exists')
+      .uponReceiving('a request to process payment')
+      .withRequest({
+        method: 'POST',
+        path: '/payments',
+        body: {
+          orderId: '123',
+          amount: 100
+        }
+      })
+      .willRespondWith({
+        status: 200,
+        body: {
+          id: Matchers.string('payment-123'),
+          status: 'success',
+          amount: 100
+        }
+      });
+  });
+});
+```
+
+## E2E 测试：验证用户场景
+
+### E2E 测试的原则
+
+- **用户视角**：模拟真实用户操作
+- **关键路径**：只测核心业务流程
+- **独立性**：不依赖其他测试的状态
+
+### E2E 测试示例
+
+```typescript
+// Cypress 示例
+describe('购物流程', () => {
+  beforeEach(() => {
+    // 使用测试账号
+    cy.login('test@example.com', 'password');
+  });
+
+  it('用户应该能完成完整购买流程', () => {
+    // 1. 浏览商品
+    cy.visit('/products');
+    cy.get('[data-testid="product-1"]').click();
+
+    // 2. 加入购物车
+    cy.get('[data-testid="add-to-cart"]').click();
+    cy.get('[data-testid="cart-count"]').should('contain', '1');
+
+    // 3. 结算
+    cy.get('[data-testid="checkout"]').click();
+    cy.url().should('include', '/checkout');
+
+    // 4. 填写地址
+    cy.get('[data-testid="shipping-address"]').type('123 Test St');
+    cy.get('[data-testid="city"]').type('Test City');
+
+    // 5. 选择支付方式
+    cy.get('[data-testid="payment-credit-card"]').click();
+
+    // 6. 提交订单
+    cy.get('[data-testid="place-order"]').click();
+
+    // 7. 验证订单成功
+    cy.url().should('include', '/order-success');
+    cy.get('[data-testid="order-number"]').should('be.visible');
+
+    // 8. 验证邮件发送（可选）
+    cy.task('checkEmail', { to: 'test@example.com' })
+      .should('contain', '订单确认');
+  });
+
+  it('购物车为空时不应能结算', () => {
+    cy.visit('/cart');
+    cy.get('[data-testid="checkout"]').should('be.disabled');
+    cy.get('[data-testid="empty-cart-message"]').should('be.visible');
+  });
+});
+```
+
+### E2E 最佳实践
+
+**1. 使用 data-testid，不要用 CSS 选择器**
+
+```html
+<!-- ❌ 不要这样 -->
+<button class="btn btn-primary">提交</button>
+
+<!-- ✅ 应该这样 -->
+<button data-testid="submit-order" class="btn btn-primary">提交</button>
+```
+
+**2. 每个测试独立设置数据**
+
+```typescript
+beforeEach(() => {
+  cy.task('db:seed', { scenario: 'user-with-cart' });
+});
+```
+
+**3. 只测可见行为，不测实现细节**
+
+```typescript
+// ❌ 不好的测试
+it('应该调用 createOrder API', () => {
+  cy.intercept('POST', '/api/orders').as('createOrder');
+  // ... 操作
+  cy.wait('@createOrder'); // 测的是实现
+});
+
+// ✅ 好的测试
+it('应该创建订单', () => {
+  // ... 操作
+  cy.get('[data-testid="order-confirmation"]').should('be.visible'); // 测的是结果
+});
+```
+
+## 测试策略：我们的实践经验
+
+### 覆盖率策略
+
+**不要盲目追求 100% 覆盖率**。
+
+我们的策略：
+
+| 模块类型 | 单元测试 | 集成测试 | E2E | 目标覆盖率 |
+|----------|----------|----------|-----|------------|
+| 核心业务逻辑 | ✅ | ✅ | ✅ | 90%+ |
+| 工具函数 | ✅ | ❌ | ❌ | 70%+ |
+| API 路由 | ⚠️ | ✅ | ✅ | 80%+ |
+| 数据库访问 | ❌ | ✅ | ⚠️ | - |
+| UI 组件 | ✅ | ⚠️ | ✅ | 70%+ |
+
+### 测试运行策略
+
+**本地开发**（每次保存）：
+```bash
+# 只运行相关单元测试
+npm test -- --watch --testPathPattern="cart"
+
+# 运行时间 < 5s
+```
+
+**Pre-commit**：
+```bash
+# 运行受影响的测试
+npm test -- --changedSince=main
+
+# 运行时间 < 30s
+```
+
+**CI/CD**（每次 Push）：
+```bash
+# 运行全部测试
+npm test:unit
+npm test:integration
+npm test:e2e
+
+# 运行时间 < 10min
+```
+
+** nightly**（每天凌晨）：
+```bash
+# 运行完整回归测试
+npm test:full-regression
+
+# 运行时间无限制
+```
+
+### 测试数据管理
+
+**策略：Factory + Builder 模式**
+
+```typescript
+// factories/user.factory.ts
+export const userFactory = Factory.define<User>(() => ({
+  id: faker.string.uuid(),
+  email: faker.internet.email(),
+  name: faker.person.fullName(),
+  createdAt: new Date()
+}));
+
+// 在测试中使用
+const user = userFactory.build({ email: 'test@example.com' });
+const admin = userFactory.build({ role: 'admin' });
+```
+
+### 测试即文档
+
+好的测试就是最好的文档：
+
+```typescript
+describe('OrderService - 订单状态流转', () => {
+  it('pending -> paid: 支付成功后变为已支付', async () => {
+    // ...
+  });
+
+  it('paid -> shipped: 发货后变为已发货', async () => {
+    // ...
+  });
+
+  it('shipped -> delivered: 签收后变为已送达', async () => {
+    // ...
+  });
+
+  it('任何状态 -> cancelled: 用户可取消未发货订单', async () => {
+    // ...
+  });
+
+  it('delivered -> cannot cancel: 已送达订单不可取消', async () => {
+    // ...
+  });
+});
+```
+
+## 常见反模式与解决方案
+
+### 反模式 1：测试代码重复
+
+**问题**：每个测试都重复设置代码
+
+**解决**：使用 fixtures 和 factories
+
+```typescript
+// fixtures/orders.ts
+export const createSampleOrder = (overrides = {}) => ({
+  id: 'order-1',
+  items: [/* ... */],
+  status: 'pending',
+  ...overrides
+});
+```
+
+### 反模式 2：测试顺序依赖
+
+**问题**：测试 A 改变了数据，导致测试 B 失败
+
+**解决**：每个测试独立设置和清理
+
+```typescript
+beforeEach(async () => {
+  await db.truncate(); // 清空所有表
+  await seedBasicData(); // 重新设置基础数据
+});
+```
+
+### 反模式 3：测试私有方法
+
+**问题**：测试 `_calculateDiscount` 而不是公共接口
+
+**解决**：通过公共行为测试，或重构让逻辑可独立测试
+
+### 反模式 4：忽略 flaky tests
+
+**问题**："这个测试有时失败，不管了"
+
+**解决**：
+1. 找出不稳定原因
+2. 修复或删除
+3. 不要忽视， flaky test 会削弱对测试的信心
+
+## 测试驱动开发（TDD）
+
+### TDD 循环
+
+```
+1. Red: 写一个失败的测试
+2. Green: 写最少的代码让测试通过
+3. Refactor: 重构，保持测试通过
+```
+
+### TDD 示例
+
+**需求**：实现一个函数，检查密码强度
+
+```typescript
+// Step 1: 写失败的测试
+describe('checkPasswordStrength', () => {
+  it('应该返回 weak 当密码少于 8 位', () => {
+    expect(checkPasswordStrength('abc')).toBe('weak');
+  });
+});
+
+// Step 2: 最简单的实现
+function checkPasswordStrength(password: string): string {
+  if (password.length < 8) return 'weak';
+  return 'strong';
+}
+
+// Step 3: 添加更多测试，逐步完善
+it('应该返回 weak 当密码没有数字', () => {
+  expect(checkPasswordStrength('abcdefgh')).toBe('weak');
+});
+
+it('应该返回 weak 当密码没有大写字母', () => {
+  expect(checkPasswordStrength('abcdefgh1')).toBe('weak');
+});
+
+it('应该返回 strong 当密码满足所有条件', () => {
+  expect(checkPasswordStrength('Abcdefgh1')).toBe('strong');
+});
+
+// Step 4: 重构实现
+function checkPasswordStrength(password: string): 'weak' | 'strong' {
+  const hasMinLength = password.length >= 8;
+  const hasNumber = /\d/.test(password);
+  const hasUpperCase = /[A-Z]/.test(password);
+
+  return hasMinLength && hasNumber && hasUpperCase ? 'strong' : 'weak';
+}
+```
+
+### 何时不用 TDD？
+
+TDD 不是银弹，以下情况可以跳过：
+- 探索性代码（不确定最终设计）
+- 纯 UI 代码（适合用 Storybook + Visual Testing）
+- 配置代码
+- 一次性的脚本
+
+## 测试基础设施
+
+### CI/CD 集成
+
+```yaml
+# .github/workflows/test.yml
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit -- --coverage
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+```
+
+### 测试报告
+
+```typescript
+// jest.config.js
+module.exports = {
+  reporters: [
+    'default',
+    ['jest-junit', {
+      outputDirectory: './reports',
+      outputName: 'junit.xml'
+    }],
+    ['jest-html-reporter', {
+      pageTitle: 'Test Report',
+      outputPath: './reports/test-report.html'
+    }]
+  ]
+};
+```
+
+## 总结：测试策略 checklist
+
+### 设计阶段
+- [ ] 确定测试金字塔各层比例
+- [ ] 定义关键路径（必须覆盖的 E2E 场景）
+- [ ] 选择测试工具和框架
+- [ ] 设置 CI/CD 流水线
+
+### 开发阶段
+- [ ] 单元测试覆盖率 > 80%（核心业务）
+- [ ] 集成测试覆盖主要 API
+- [ ] E2E 测试覆盖关键用户路径
+- [ ] 每个 Bug 修复伴随回归测试
+
+### 维护阶段
+- [ ] 定期审查和删除无用测试
+- [ ] 修复 flaky tests
+- [ ] 更新测试数据 factories
+- [ ] 优化测试执行时间
+
+### 文化
+- [ ] 测试是 feature，不是 chore
+- [ ] 测试失败不能合并
+- [ ] 团队共享测试维护责任
+- [ ] 测试即文档，保持可读性
+
+---
+
+## 参考资源
+
+**书籍**：
+- 《Unit Testing Principles, Practices, and Patterns》Vladimir Khorikov
+- 《Test Driven Development》Kent Beck
+- 《Growing Object-Oriented Software, Guided by Tests》Steve Freeman
+
+**工具**：
+- Jest / Vitest：单元测试
+- Testing Library：React/Vue 组件测试
+- Playwright / Cypress：E2E 测试
+- MSW (Mock Service Worker)：API Mocking
+
+**文章**：
+- [Google Testing Blog](https://testing.googleblog.com/)
+- [Martin Fowler - Test Pyramid](https://martinfowler.com/bliki/TestPyramid.html)
+
+---
+
+*你的测试策略是什么样的？遇到过哪些测试难题？欢迎分享。*
+
+*本文的示例代码基于真实项目经验，测试策略帮助我们减少了 70% 的生产环境 Bug。*
