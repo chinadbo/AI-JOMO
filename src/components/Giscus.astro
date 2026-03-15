@@ -5,13 +5,13 @@
  * 配置步骤：
  * 1. 确保仓库已启用 Discussions: Settings -> General -> Discussions ✅
  * 2. 安装 Giscus App: https://github.com/apps/giscus
- * 3. 在仓库 Discussions 中创建 "General" 分类（如果不存在）
+ * 3. 在仓库 Discussions 中创建 "Announcements" 分类（如果不存在）
  * 4. 验证 category-id 正确
  *
  * 当前配置：
  * - 仓库: chinadbo/AI-JOMO
  * - 评论映射: pathname（根据文章路径自动匹配）
- * - 主题: 透明深色（适配赛博朋克风格）
+ * - 主题: preferred_color_scheme（跟随系统偏好）
  */
 
 // 获取当前语言
@@ -22,15 +22,15 @@ const currentLang = langMatch ? langMatch[1] : 'zh';
 // Giscus 配置 - 使用 title 映射更稳定
 const giscusConfig = {
   repo: "chinadbo/AI-JOMO",
-  repoId: "R_kgDOI7mXJg",
-  category: "General",
-  categoryId: "DIC_kwDOI7mXJs4Cjb",
+  repoId: "R_kgDORlCkXA",
+  category: "Announcements",
+  categoryId: "DIC_kwDORlCkXM4C4bYR",
   mapping: "pathname", // 改为 pathname 更稳定
   strict: "0",
   reactionsEnabled: "1",
   emitMetadata: "0",
   inputPosition: "bottom",
-  theme: "transparent_dark",
+  theme: "preferred_color_scheme",
   lang: currentLang === 'zh' ? 'zh-CN' : 'en',
   loading: "lazy"
 };
@@ -96,7 +96,7 @@ const giscusConfig = {
             const iframe = document.querySelector('iframe.giscus-frame');
             if (iframe) {
               iframe.contentWindow?.postMessage(
-                { giscus: { setConfig: { theme: isDark ? 'transparent_dark' : 'light' } } },
+                { giscus: { setConfig: { theme: isDark ? 'dark' : 'light' } } },
                 'https://giscus.app'
               );
             }
@@ -137,7 +137,7 @@ const giscusConfig = {
     min-height: 200px;
   }
 
-  /* Custom Giscus theming to match cyberpunk style */
+  /* Giscus standard theme integration */
   :global(.giscus) {
     --giscus-background: transparent;
     --giscus-card-background: rgba(15, 23, 42, 0.7);
