@@ -6,6 +6,7 @@
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Giscus from '../../components/Giscus.astro';
+import ReadingProgress from '../../components/ReadingProgress.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('essays');
@@ -28,6 +29,7 @@ const readingTime = post.data.readingTime || 5;
 ---
 
 <BaseLayout title={`${post.data.title} - Ioodu's Blog`} description={post.data.description}>
+  <ReadingProgress />
   <article class="max-w-4xl mx-auto px-4 py-12">
     <header class="mb-12">
       <div class="flex flex-wrap gap-2 mb-4">
