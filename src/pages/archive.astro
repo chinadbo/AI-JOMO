@@ -1,0 +1,129 @@
+---
+/**
+ * Archive Page - All Posts by Category
+ */
+
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const techPosts = await getCollection('tech');
+const gearPosts = await getCollection('gear');
+const essaysPosts = await getCollection('essays');
+const lifePosts = await getCollection('life');
+
+// Sort all by date
+const sortByDate = (a: any, b: any) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
+
+const allPosts = [
+  ...techPosts.map(p => ({ ...p, collection: 'tech' })),
+  ...gearPosts.map(p => ({ ...p, collection: 'gear' })),
+  ...essaysPosts.map(p => ({ ...p, collection: 'essays' })),
+  ...lifePosts.map(p => ({ ...p, collection: 'life' })),
+].sort(sortByDate);
+
+const categoryColors: Record<string, string> = {
+  tech: 'cyber-cyan',
+  gear: 'electric-blue',
+  essays: 'purple-400',
+  life: 'green-400',
+};
+
+const categoryLabels: Record<string, string> = {
+  tech: 'Tech',
+  gear: 'Gear',
+  essays: 'Essays',
+  life: 'Life',
+};
+---
+
+<BaseLayout title="Archive - Ioodu's Blog" description="All articles organized by date and category">
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    <!-- Header -->
+    <div class="mb-12">
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3 mb-4">
+        <span class="text-cyber-cyan">#</span> Archive
+      </h1>
+      <p class="text-slate-600 dark:text-slate-400">
+        All {allPosts.length} posts organized by date
+      </p>
+    </div>
+
+    <!-- All Posts by Date -->
+    <div class="space-y-4">
+      {allPosts.map((post) => {
+        const color = categoryColors[post.collection] || 'slate-400';
+        const label = categoryLabels[post.collection] || post.collection;
+        return (
+          <article class="group p-4 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-cyber-cyan/50 dark:hover:border-cyber-cyan/50 transition-colors">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class={`text-xs px-2 py-0.5 rounded-full bg-${color}/10 text-${color} border border-${color}/20`}>
+                    {label}
+                  </span>
+                  <time class="text-xs text-slate-500">
+                    {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </time>
+                </div>
+                <h2 class="font-semibold text-slate-900 dark:text-white mb-1 group-hover:text-cyber-cyan transition-colors">
+                  <a href={`/${post.collection}/${post.id}`} class="hover:underline">
+                    {post.data.title}
+                  </a>
+                </h2>
+                <p class="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
+                  {post.data.description}
+                </p>
+              </div>
+              <svg
+                class="w-5 h-5 text-slate-400 group-hover:text-cyber-cyan transition-colors flex-shrink-0 mt-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+
+    <!-- Empty State -->
+    {allPosts.length === 0 && (
+      <div class="text-center py-12">
+        <p class="text-slate-500">No posts yet</p>
+      </div>
+    )}
+
+    <!-- Category Links -->
+    <div class="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
+      <h2 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">Browse by Category</h2>
+      <div class="flex flex-wrap gap-3">
+        <a
+          href="/tech"
+          class="px-4 py-2 rounded-lg bg-cyber-cyan/10 text-cyber-cyan hover:bg-cyber-cyan/20 transition-colors border border-cyber-cyan/20"
+        >
+          Tech ({techPosts.length})
+        </a>
+        <a
+          href="/gear"
+          class="px-4 py-2 rounded-lg bg-electric-blue/10 text-electric-blue hover:bg-electric-blue/20 transition-colors border border-electric-blue/20"
+        >
+          Gear ({gearPosts.length})
+        </a>
+        <a
+          href="/essays"
+          class="px-4 py-2 rounded-lg bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors border border-purple-500/20"
+        >
+          Essays ({essaysPosts.length})
+        </a>
+        <a
+          href="/life"
+          class="px-4 py-2 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors border border-green-500/20"
+        >
+          Life ({lifePosts.length})
+        </a>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
