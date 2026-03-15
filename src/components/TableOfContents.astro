@@ -19,33 +19,101 @@ const tocHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
 ---
 
 {tocHeadings.length > 0 && (
-  <nav class="toc-sidebar fixed right-4 top-24 w-64 max-h-[calc(100vh-8rem)] overflow-y-auto hidden xl:block">
-    <div class="glass rounded-xl p-4">
-      <h4 class="font-display font-semibold text-sm text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-        <svg class="w-4 h-4 text-cyber-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
-        </svg>
-        目录
-      </h4>
-      <ul class="toc space-y-1" id="toc-list">
-        {tocHeadings.map((heading) => (
-          <li class={`${heading.depth === 3 ? 'ml-3' : ''}`}>
-            <a
-              href={`#${heading.slug}`}
-              data-heading-id={heading.slug}
-              class="text-slate-600 dark:text-slate-400 hover:text-cyber-cyan transition-colors text-xs truncate"
+  <>
+    {/* Desktop TOC Sidebar */}
+    <nav class="toc-sidebar fixed right-4 top-24 w-64 max-h-[calc(100vh-8rem)] overflow-y-auto hidden xl:block">
+      <div class="glass rounded-xl p-4">
+        <h4 class="font-display font-semibold text-sm text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-cyber-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+          </svg>
+          目录
+        </h4>
+        <ul class="toc space-y-1" id="toc-list">
+          {tocHeadings.map((heading) => (
+            <li class={`${heading.depth === 3 ? 'ml-3' : ''}`}>
+              <a
+                href={`#${heading.slug}`}
+                data-heading-id={heading.slug}
+                class="block text-slate-600 dark:text-slate-400 hover:text-cyber-cyan transition-colors text-xs truncate py-1"
+              >
+                {heading.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </nav>
+
+    {/* Mobile TOC Button */}
+    <button
+      id="mobile-toc-btn"
+      class="fixed right-4 bottom-20 z-30 xl:hidden w-12 h-12 rounded-full glass glow-cyan flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-cyber-cyan transition-colors shadow-lg"
+      aria-label="Open table of contents"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+      </svg>
+    </button>
+
+    {/* Mobile TOC Drawer */}
+    <div
+      id="mobile-toc-drawer"
+      class="fixed inset-0 z-40 xl:hidden opacity-0 pointer-events-none transition-opacity duration-300"
+    >
+      {/* Backdrop */}
+      <div id="mobile-toc-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+
+      {/* Drawer */}
+      <div
+        id="mobile-toc-panel"
+        class="absolute right-0 top-0 bottom-0 w-72 max-w-[80vw] glass transform translate-x-full transition-transform duration-300 ease-out"
+      >
+        <div class="flex flex-col h-full">
+          {/* Header */}
+          <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+            <h4 class="font-display font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+              <svg class="w-5 h-5 text-cyber-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+              </svg>
+              目录
+            </h4>
+            <button
+              id="mobile-toc-close"
+              class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              aria-label="Close"
             >
-              {heading.text}
-            </a>
-          </li>
-        ))}
-      </ul>
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* TOC List */}
+          <div class="flex-1 overflow-y-auto p-4">
+            <ul class="toc space-y-2" id="mobile-toc-list">
+              {tocHeadings.map((heading) => (
+                <li class={`${heading.depth === 3 ? 'ml-4' : ''}`}>
+                  <a
+                    href={`#${heading.slug}`}
+                    data-heading-id={heading.slug}
+                    class="mobile-toc-link block text-slate-600 dark:text-slate-400 hover:text-cyber-cyan transition-colors text-sm py-1"
+                  >
+                    {heading.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
-  </nav>
+  </>
 )}
 
 <script>
   (function() {
+    // Desktop TOC
     const tocLinks = document.querySelectorAll('#toc-list a');
     const headings = document.querySelectorAll('article h2[id], article h3[id]');
 
@@ -104,6 +172,56 @@ const tocHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
           }
         }
       });
+    });
+
+    // Mobile TOC Drawer
+    const mobileTocBtn = document.getElementById('mobile-toc-btn');
+    const mobileTocDrawer = document.getElementById('mobile-toc-drawer');
+    const mobileTocBackdrop = document.getElementById('mobile-toc-backdrop');
+    const mobileTocPanel = document.getElementById('mobile-toc-panel');
+    const mobileTocClose = document.getElementById('mobile-toc-close');
+    const mobileTocLinks = document.querySelectorAll('.mobile-toc-link');
+
+    function openMobileToc() {
+      mobileTocDrawer?.classList.remove('opacity-0', 'pointer-events-none');
+      mobileTocDrawer?.classList.add('opacity-100', 'pointer-events-auto');
+      mobileTocPanel?.classList.remove('translate-x-full');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileToc() {
+      mobileTocDrawer?.classList.add('opacity-0', 'pointer-events-none');
+      mobileTocDrawer?.classList.remove('opacity-100', 'pointer-events-auto');
+      mobileTocPanel?.classList.add('translate-x-full');
+      document.body.style.overflow = '';
+    }
+
+    mobileTocBtn?.addEventListener('click', openMobileToc);
+    mobileTocClose?.addEventListener('click', closeMobileToc);
+    mobileTocBackdrop?.addEventListener('click', closeMobileToc);
+
+    // Close drawer when clicking a link
+    mobileTocLinks.forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const href = (link as HTMLAnchorElement).getAttribute('href');
+        if (href) {
+          const target = document.querySelector(href);
+          if (target) {
+            closeMobileToc();
+            setTimeout(() => {
+              target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 300);
+          }
+        }
+      });
+    });
+
+    // Close on escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeMobileToc();
+      }
     });
   })();
 </script>

@@ -117,8 +117,8 @@ const navLinks = [
           </span>
         </a>
 
-        <!-- Center: Navigation Links -->
-        <ul class="flex items-center gap-6">
+        <!-- Center: Navigation Links (Desktop) -->
+        <ul class="hidden md:flex items-center gap-6">
           {navLinks.map((link) => (
             <li>
               <a
@@ -131,8 +131,22 @@ const navLinks = [
           ))}
         </ul>
 
-        <!-- Right: Command Palette Trigger + Theme Toggle -->
+        <!-- Right: Mobile Menu Button + Command Palette Trigger + Theme Toggle -->
         <div class="flex items-center gap-2">
+          <!-- Mobile Menu Button -->
+          <button
+            id="mobile-menu-btn"
+            class="md:hidden p-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            aria-label="Toggle menu"
+            aria-expanded="false"
+          >
+            <svg id="menu-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+            <svg id="close-icon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
           <!-- Command Palette Trigger -->
           <button
             id="cmd-k-trigger"
@@ -147,6 +161,27 @@ const navLinks = [
         </div>
       </nav>
     </header>
+
+    <!-- Mobile Navigation Menu -->
+    <div
+      id="mobile-menu"
+      class="fixed inset-x-0 top-16 z-30 glass border-b border-slate-200 dark:border-slate-800 transform -translate-y-full transition-transform duration-300 ease-in-out md:hidden"
+    >
+      <nav class="max-w-6xl mx-auto px-4 py-4">
+        <ul class="space-y-2">
+          {navLinks.map((link) => (
+            <li>
+              <a
+                href={link.href}
+                class="mobile-nav-link block py-3 px-4 rounded-lg font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-cyber-cyan dark:hover:text-cyber-cyan transition-colors"
+              >
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
 
     <!-- Main Content -->
     <main class="flex-1 pt-16">
@@ -191,6 +226,62 @@ const navLinks = [
       document.getElementById('cmd-k-trigger')?.addEventListener('click', () => {
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
       });
+
+      // Mobile menu toggle
+      (function() {
+        const menuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const menuIcon = document.getElementById('menu-icon');
+        const closeIcon = document.getElementById('close-icon');
+        const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+        let isOpen = false;
+
+        function toggleMenu() {
+          isOpen = !isOpen;
+          if (isOpen) {
+            mobileMenu?.classList.remove('-translate-y-full');
+            menuIcon?.classList.add('hidden');
+            closeIcon?.classList.remove('hidden');
+            menuBtn?.setAttribute('aria-expanded', 'true');
+          } else {
+            mobileMenu?.classList.add('-translate-y-full');
+            menuIcon?.classList.remove('hidden');
+            closeIcon?.classList.add('hidden');
+            menuBtn?.setAttribute('aria-expanded', 'false');
+          }
+        }
+
+        function closeMenu() {
+          if (isOpen) {
+            isOpen = false;
+            mobileMenu?.classList.add('-translate-y-full');
+            menuIcon?.classList.remove('hidden');
+            closeIcon?.classList.add('hidden');
+            menuBtn?.setAttribute('aria-expanded', 'false');
+          }
+        }
+
+        menuBtn?.addEventListener('click', toggleMenu);
+
+        // Close menu when clicking a link
+        mobileNavLinks.forEach(link => {
+          link.addEventListener('click', closeMenu);
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+          if (isOpen && !mobileMenu?.contains(e.target as Node) && !menuBtn?.contains(e.target as Node)) {
+            closeMenu();
+          }
+        });
+
+        // Close menu on escape key
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && isOpen) {
+            closeMenu();
+          }
+        });
+      })();
     </script>
   </body>
 </html>

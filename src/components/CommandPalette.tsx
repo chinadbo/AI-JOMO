@@ -127,7 +127,7 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
       />
 
       {/* Command Palette */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-full max-w-xl">
+      <div className="absolute top-[10%] sm:top-1/4 left-1/2 -translate-x-1/2 w-[95%] sm:w-full max-w-xl px-2 sm:px-0">
         <Command
           className="glass rounded-xl overflow-hidden glow-cyan"
           shouldFilter={true}
@@ -147,7 +147,7 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
           </div>
 
           {/* Results List */}
-          <Command.List className="max-h-[400px] overflow-y-auto p-2">
+          <Command.List className="max-h-[50vh] sm:max-h-[400px] overflow-y-auto p-2">
             <Command.Empty className="py-6 text-center text-slate-500">
               No results found
             </Command.Empty>
@@ -213,14 +213,15 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
 
           {/* Footer Hints */}
           <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500 flex items-center gap-4">
-            <span>
+            <span className="hidden sm:inline">
               <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">↑↓</kbd> Navigate
             </span>
-            <span>
+            <span className="hidden sm:inline">
               <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">↵</kbd> Select
             </span>
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">esc</kbd> Close
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 hidden sm:inline">esc</kbd>
+              <span className="sm:hidden">Tap to select</span>
             </span>
           </div>
         </Command>
