@@ -5,8 +5,8 @@
  * 配置步骤：
  * 1. 确保仓库已启用 Discussions: Settings -> General -> Discussions ✅
  * 2. 安装 Giscus App: https://github.com/apps/giscus
- * 3. 前往 https://giscus.app 获取 repo-id 和 category-id
- * 4. 更新下方的 data-repo-id 和 data-category-id
+ * 3. 在仓库 Discussions 中创建 "General" 分类（如果不存在）
+ * 4. 验证 category-id 正确
  *
  * 当前配置：
  * - 仓库: chinadbo/AI-JOMO
@@ -18,9 +18,26 @@
 const pathname = Astro.url.pathname;
 const langMatch = pathname.match(/^\/(zh|en)(\/|$)/);
 const currentLang = langMatch ? langMatch[1] : 'zh';
+
+// Giscus 配置 - 使用 title 映射更稳定
+const giscusConfig = {
+  repo: "chinadbo/AI-JOMO",
+  repoId: "R_kgDOI7mXJg",
+  category: "General",
+  categoryId: "DIC_kwDOI7mXJs4Cjb",
+  mapping: "pathname", // 改为 pathname 更稳定
+  strict: "0",
+  reactionsEnabled: "1",
+  emitMetadata: "0",
+  inputPosition: "bottom",
+  theme: "transparent_dark",
+  lang: currentLang === 'zh' ? 'zh-CN' : 'en',
+  loading: "lazy"
+};
+---
 ---
 
-<div class="giscus-wrapper mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
+<div class="giscus-wrapper mt-12 pt-8 border-t border-slate-200 dark:border-slate-800" id="giscus-container">
   <h3 class="font-display text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
     <svg class="w-5 h-5 text-cyber-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
@@ -28,21 +45,42 @@ const currentLang = langMatch ? langMatch[1] : 'zh';
     {currentLang === 'zh' ? '评论' : 'Comments'}
   </h3>
 
+  <!-- Error message container -->
+  <div id="giscus-error" class="hidden p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm">
+    <p class="font-medium mb-2">{currentLang === 'zh' ? '评论功能配置中' : 'Comments temporarily unavailable'}</p>
+    <p class="text-amber-700 dark:text-amber-300">
+      {currentLang === 'zh'
+        ? '正在配置评论系统。如果问题持续，请通过 GitHub Discussions 留言。'
+        : 'Configuring comment system. Please use GitHub Discussions if the issue persists.'}
+    </p>
+    <a
+      href={`https://github.com/chinadbo/AI-JOMO/discussions`}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="inline-flex items-center gap-1 mt-2 text-cyber-cyan hover:underline"
+    >
+      {currentLang === 'zh' ? '前往 GitHub Discussions' : 'Go to GitHub Discussions'}
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+      </svg>
+    </a>
+  </div>
+
   <script
     is:inline
     src="https://giscus.app/client.js"
-    data-repo="chinadbo/AI-JOMO"
-    data-repo-id="R_kgDOI7mXJg"
-    data-category="General"
-    data-category-id="DIC_kwDOI7mXJs4Cjb"
-    data-mapping="pathname"
-    data-strict="0"
-    data-reactions-enabled="1"
-    data-emit-metadata="0"
-    data-input-position="bottom"
-    data-theme="transparent_dark"
-    data-lang={currentLang === 'zh' ? 'zh-CN' : 'en'}
-    data-loading="lazy"
+    data-repo={giscusConfig.repo}
+    data-repo-id={giscusConfig.repoId}
+    data-category={giscusConfig.category}
+    data-category-id={giscusConfig.categoryId}
+    data-mapping={giscusConfig.mapping}
+    data-strict={giscusConfig.strict}
+    data-reactions-enabled={giscusConfig.reactionsEnabled}
+    data-emit-metadata={giscusConfig.emitMetadata}
+    data-input-position={giscusConfig.inputPosition}
+    data-theme={giscusConfig.theme}
+    data-lang={giscusConfig.lang}
+    data-loading={giscusConfig.loading}
     crossorigin="anonymous"
     async
   ></script>
@@ -67,6 +105,29 @@ const currentLang = langMatch ? langMatch[1] : 'zh';
       });
 
       observer.observe(document.documentElement, { attributes: true });
+
+      // Handle Giscus errors
+      window.addEventListener('message', function(e) {
+        if (e.origin !== 'https://giscus.app') return;
+
+        // Check for error message
+        if (e.data && e.data.giscus && e.data.giscus.error) {
+          console.error('Giscus error:', e.data.giscus.error);
+          const errorDiv = document.getElementById('giscus-error');
+          if (errorDiv) {
+            errorDiv.classList.remove('hidden');
+          }
+        }
+      });
+
+      // Fallback: Show error if giscus doesn't load within 10 seconds
+      setTimeout(function() {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        const errorDiv = document.getElementById('giscus-error');
+        if (!iframe && errorDiv) {
+          errorDiv.classList.remove('hidden');
+        }
+      }, 10000);
     })();
   </script>
 </div>

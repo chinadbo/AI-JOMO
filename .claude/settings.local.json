@@ -15,7 +15,16 @@
       "WebFetch(domain:developers.cloudflare.com)",
       "WebFetch(domain:docs.astro.build)",
       "Bash(npm uninstall:*)",
-      "Bash(find . -type f -name \"*.json\" -o -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \"*.jsx\" 2>/dev/null | head -50)"
+      "Bash(find . -type f -name \"*.json\" -o -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \"*.jsx\" 2>/dev/null | head -50)",
+      "Bash(ls -la src/content/essays/*.mdx src/content/gear/*.mdx | tail -10)",
+      "Bash(echo \"Current distribution:\" && ls src/content/tech/*.mdx 2>/dev/null | wc -l && ls src/content/gear/*.mdx 2>/dev/null | wc -l && ls src/content/life/*.mdx 2>/dev/null | wc -l && ls src/content/essays/*.mdx 2>/dev/null | wc -l)",
+      "Bash(echo \"Tech:\"; ls /Users/ioodu/dev/AI/AI-JOMO/src/content/tech/*.mdx 2>/dev/null | wc -l; echo \"Essays:\"; ls /Users/ioodu/dev/AI/AI-JOMO/src/content/essays/*.mdx 2>/dev/null | wc -l; echo \"Life:\"; ls /Users/ioodu/dev/AI/AI-JOMO/src/content/life/*.mdx 2>/dev/null | wc -l; echo \"Gear:\"; ls /Users/ioodu/dev/AI/AI-JOMO/src/content/gear/*.mdx 2>/dev/null | wc -l)",
+      "Bash(grep -E \"^pubDate:|^updatedDate:\" src/content/**/*.mdx 2>/dev/null | head -100)",
+      "Bash(grep -E \"^pubDate:\" src/content/**/*.mdx 2>/dev/null | grep -E \"2026-\\(0[4-9]|1[0-2]\\)\" | head -20)",
+      "Bash(grep -E \"^pubDate:\" src/content/**/*.mdx 2>/dev/null | grep -E \"2026-03-\\(1[6-9]|2[0-9]|3[0-1]\\)\" | head -20)",
+      "WebFetch(domain:giscus.app)",
+      "Bash(node scripts/verify-giscus.js)",
+      "Bash(mv scripts/verify-giscus.js scripts/verify-giscus.cjs && node scripts/verify-giscus.cjs)"
     ]
   }
 }
