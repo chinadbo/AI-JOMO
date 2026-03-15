@@ -59,18 +59,47 @@ const searchItems = [
         <div class="p-6 font-mono text-sm">
           <div class="flex items-start gap-2">
             <span class="text-green-400">$</span>
-            <div class="space-y-1">
+            <div class="space-y-1 w-full">
+              <!-- whoami -->
               <p class="text-cyber-cyan">whoami</p>
-              <p class="text-slate-300">Ioodu | AI & Software Engineer | Full Stack Architect</p>
+              <p class="text-slate-300">
+                <span class="text-cyber-cyan">Ioodu</span>
+                <span class="text-slate-500">|</span>
+                <span class="text-electric-blue">AI & Software Engineer</span>
+                <span class="text-slate-500">|</span>
+                <span class="text-purple-400">Full Stack Architect</span>
+              </p>
+
+              <!-- cat about.txt -->
               <p class="text-slate-300 mt-4">cat about.txt</p>
-              <p class="text-slate-400 max-w-lg">
-                Building intelligent systems and beautiful user experiences. Focused on Frontend Architecture, AI/ML integration, and modern web technologies.
+              <p class="text-slate-400 max-w-2xl leading-relaxed">
+                Building <span class="text-cyber-cyan">intelligent systems</span> and <span class="text-electric-blue">beautiful user experiences</span>.
+                Specialized in <span class="text-purple-400">Frontend Architecture</span>, <span class="text-green-400">AI/ML integration</span>,
+                and <span class="text-yellow-400">modern web technologies</span>.
               </p>
+
+              <!-- echo $STACK -->
               <p class="text-slate-300 mt-4">echo $STACK</p>
-              <p class="text-slate-400">
-                <span class="text-electric-blue">TypeScript</span> · <span class="text-electric-blue">React</span> · <span class="text-electric-blue">Astro</span> · <span class="text-electric-blue">Rust</span> · <span class="text-electric-blue">Go</span> · <span class="text-electric-blue">Python</span> · <span class="text-electric-blue">AI/ML</span>
+              <p class="text-slate-400 flex flex-wrap gap-2">
+                <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">TypeScript</span>
+                <span class="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">React</span>
+                <span class="px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20">Astro</span>
+                <span class="px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20">Rust</span>
+                <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Go</span>
+                <span class="px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Python</span>
+                <span class="px-2 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20">AI/ML</span>
               </p>
-              <p class="text-green-400 mt-6 animate-pulse">_</p>
+
+              <!-- Current Focus -->
+              <p class="text-slate-300 mt-4">ps aux | grep focus</p>
+              <div class="text-slate-400 text-xs space-y-1">
+                <p><span class="text-green-400">●</span> Architecting scalable frontend systems</p>
+                <p><span class="text-green-400">●</span> Integrating LLMs into production applications</p>
+                <p><span class="text-green-400">●</span> Building AI-native developer tools</p>
+              </div>
+
+              <!-- Cursor -->
+              <p class="text-green-400 mt-6 animate-pulse">_<span class="ml-1 text-slate-500 text-xs">awaiting input...</span></p>
             </div>
           </div>
         </div>

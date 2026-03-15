@@ -1,0 +1,747 @@
+---
+title: "Building AI Agents: From ReAct to Multi-Agent Systems"
+description: "AI agents are the next evolution in LLM applications. Deep dive into agent architecture, the ReAct pattern, tool use, memory management, and building production-ready multi-agent systems."
+pubDate: 2026-04-09
+updatedDate: 2026-04-09
+tags:
+  - AI Agents
+  - LLM
+  - ReAct
+  - Claude
+  - OpenAI
+  - LangChain
+  - Machine Learning
+  - System Design
+categories:
+  - AI/ML
+  - Engineering
+location: "Home Office"
+readingTime: 22
+mood: curious
+draft: false
+author: Ioodu
+---
+
+## The Rise of AI Agents
+
+2024 was the year of LLM applications. 2025 is the year of AI Agents.
+
+The shift is subtle but profound:
+
+- **LLM Apps**: Single-turn interactions, stateless, reactive
+- **AI Agents**: Multi-turn reasoning, stateful, proactive, tool-using, goal-oriented
+
+An agent isn't just a model that responds to prompts. It's a system that:
+1. **Reasons** through complex problems step by step
+2. **Acts** by calling tools and APIs
+3. **Remembers** context across long conversations
+4. **Plans** and executes multi-step tasks autonomously
+
+This post covers everything I've learned building production AI agents over the past year.
+
+## What Makes an Agent?
+
+### The Agent Loop
+
+At its core, an agent runs a simple but powerful loop:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐          │
+│  │ Thought  │───→│  Action  │───→│Observation│         │
+│  └────┬─────┘    └────┬─────┘    └────┬─────┘          │
+│       ↑               │               │                 │
+│       └───────────────┴───────────────┘                 │
+│                      Loop                               │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Thought**: The agent reasons about what to do next
+**Action**: The agent executes a tool/action
+**Observation**: The agent observes the result
+**Repeat** until the goal is achieved
+
+### Core Components
+
+```typescript
+interface Agent {
+  // The brain - LLM that reasons and decides
+  llm: LLMClient;
+
+  // Tools the agent can use
+  tools: Tool[];
+
+  // Memory for context across turns
+  memory: MemoryStore;
+
+  // Goal/task definition
+  goal: string;
+
+  // Current state
+  state: AgentState;
+}
+
+interface Tool {
+  name: string;
+  description: string;
+  parameters: z.ZodSchema;
+  execute: (params: any) => Promise<any>;
+}
+```
+
+## The ReAct Pattern
+
+**ReAct** (Reasoning + Acting) is the foundation of modern agent architecture.
+
+### Why ReAct Works
+
+Traditional prompting:
+```
+User: What's the weather in Tokyo?
+Assistant: [calls weather API]
+```
+
+ReAct prompting:
+```
+User: What's the weather in Tokyo?
+Assistant: I need to find the current weather in Tokyo.
+Thought: I should use the weather tool to get this information.
+Action: {"tool": "weather", "params": {"location": "Tokyo"}}
+Observation: {"temperature": 22, "condition": "sunny"}
+Thought: I have the weather information. I can now answer.
+Final Answer: It's 22°C and sunny in Tokyo.
+```
+
+The explicit reasoning steps make the agent more reliable and debuggable.
+
+### Implementing ReAct
+
+```typescript
+class ReActAgent {
+  constructor(
+    private llm: LLMClient,
+    private tools: Map<string, Tool>,
+    private maxIterations: number = 10
+  ) {}
+
+  async run(goal: string): Promise<string> {
+    const context: ReActStep[] = [];
+
+    for (let i = 0; i < this.maxIterations; i++) {
+      // Build prompt with context
+      const prompt = this.buildPrompt(goal, context);
+
+      // Get LLM response
+      const response = await this.llm.complete(prompt);
+
+      // Parse response
+      const parsed = this.parseResponse(response);
+
+      if (parsed.type === 'final') {
+        return parsed.answer;
+      }
+
+      if (parsed.type === 'action') {
+        // Execute tool
+        const tool = this.tools.get(parsed.toolName);
+        if (!tool) {
+          context.push({
+            thought: parsed.thought,
+            action: `${parsed.toolName}(${JSON.stringify(parsed.params)})`,
+            observation: `Error: Tool ${parsed.toolName} not found`
+          });
+          continue;
+        }
+
+        try {
+          const result = await tool.execute(parsed.params);
+          context.push({
+            thought: parsed.thought,
+            action: `${parsed.toolName}(${JSON.stringify(parsed.params)})`,
+            observation: JSON.stringify(result)
+          });
+        } catch (error) {
+          context.push({
+            thought: parsed.thought,
+            action: `${parsed.toolName}(${JSON.stringify(parsed.params)})`,
+            observation: `Error: ${error.message}`
+          });
+        }
+      }
+    }
+
+    throw new Error('Max iterations exceeded');
+  }
+
+  private buildPrompt(goal: string, context: ReActStep[]): string {
+    return `You are a helpful AI assistant. Solve the following task by thinking step by step.
+
+Available tools:
+${Array.from(this.tools.entries()).map(([name, tool]) =>
+  `- ${name}: ${tool.description}`
+).join('\n')}
+
+Task: ${goal}
+
+${context.map((step, i) => `
+Step ${i + 1}:
+Thought: ${step.thought}
+Action: ${step.action}
+Observation: ${step.observation}
+`).join('\n')}
+
+Think about what to do next. Respond in one of these formats:
+
+1. If you need to use a tool:
+Thought: [your reasoning]
+Action: {"tool": "toolName", "params": {...}}
+
+2. If you have the final answer:
+Thought: [your reasoning]
+Final Answer: [your answer]`;
+  }
+}
+```
+
+## Tool Design for Agents
+
+Tools are the agent's hands. Good tool design is critical.
+
+### Principles
+
+**1. Single Responsibility**
+Each tool should do one thing well.
+
+```typescript
+// Bad: Swiss army knife tool
+const badTool = {
+  name: 'database',
+  description: 'Do database operations',
+  parameters: z.object({ operation: z.string(), data: z.any() })
+};
+
+// Good: Specific tools
+const queryTool = {
+  name: 'query_database',
+  description: 'Execute a read-only SQL query',
+  parameters: z.object({ sql: z.string() })
+};
+
+const insertTool = {
+  name: 'insert_record',
+  description: 'Insert a new record into the users table',
+  parameters: z.object({ name: z.string(), email: z.string() })
+};
+```
+
+**2. Descriptive Names and Docs**
+The agent relies on tool descriptions to choose which to use.
+
+```typescript
+const searchTool = {
+  name: 'search_documents',
+  description: `Search through the document knowledge base.
+Use this when you need to find specific information from documents.
+Returns top 5 most relevant passages.
+Parameters:
+- query: natural language search query
+- filters: optional metadata filters`,
+  parameters: z.object({
+    query: z.string().describe('Natural language search query'),
+    filters: z.record(z.string()).optional()
+  })
+};
+```
+
+**3. Idempotency**
+Tools should be safe to call multiple times.
+
+```typescript
+// Bad: Creates duplicate records
+const createOrder = (data) => db.orders.insert(data);
+
+// Good: Idempotent with idempotency key
+const createOrder = (data, idempotencyKey) => {
+  return db.orders.upsert({
+    where: { idempotencyKey },
+    create: { ...data, idempotencyKey },
+    update: {} // No change if exists
+  });
+};
+```
+
+## Memory Management
+
+Agents need memory to handle long conversations and complex tasks.
+
+### Types of Memory
+
+```typescript
+interface AgentMemory {
+  // Short-term: Current conversation
+  workingMemory: Message[];
+
+  // Medium-term: Session summary
+  sessionSummary: string;
+
+  // Long-term: User preferences, facts
+  longTermMemory: VectorStore;
+}
+```
+
+### Working Memory (Sliding Window)
+
+```typescript
+class WorkingMemory {
+  private messages: Message[] = [];
+  private maxTokens: number = 4000;
+
+  add(message: Message): void {
+    this.messages.push(message);
+    this.trim();
+  }
+
+  private trim(): void {
+    let totalTokens = this.estimateTokens(this.messages);
+
+    while (totalTokens > this.maxTokens && this.messages.length > 2) {
+      // Remove oldest non-system message
+      const index = this.messages.findIndex(m => m.role !== 'system');
+      if (index > -1) {
+        const removed = this.messages.splice(index, 1)[0];
+        totalTokens -= this.estimateTokens([removed]);
+      }
+    }
+  }
+}
+```
+
+### Long-Term Memory (RAG)
+
+```typescript
+class LongTermMemory {
+  constructor(private vectorStore: VectorStore) {}
+
+  async remember(fact: string, metadata: Record<string, any>): Promise<void> {
+    const embedding = await this.embed(fact);
+    await this.vectorStore.upsert({
+      id: generateId(),
+      embedding,
+      metadata: { ...metadata, timestamp: Date.now(), fact }
+    });
+  }
+
+  async recall(query: string, k: number = 5): Promise<string[]> {
+    const embedding = await this.embed(query);
+    const results = await this.vectorStore.query(embedding, k);
+    return results.map(r => r.metadata.fact);
+  }
+
+  private async embed(text: string): Promise<number[]> {
+    // Use OpenAI, Claude, or local embedding model
+    return embeddingModel.embed(text);
+  }
+}
+```
+
+## Planning and Task Decomposition
+
+Complex tasks require planning before execution.
+
+### Hierarchical Task Planning
+
+```typescript
+interface Task {
+  id: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  dependencies: string[];
+  subtasks?: Task[];
+  result?: any;
+}
+
+class PlanningAgent {
+  async plan(goal: string): Promise<Task[]> {
+    const prompt = `Break down this goal into a list of actionable tasks.
+Goal: ${goal}
+
+Respond as a JSON array of tasks:
+[{
+  "id": "task-1",
+  "description": "specific action to take",
+  "dependencies": []
+}]`;
+
+    const response = await this.llm.complete(prompt);
+    return JSON.parse(response);
+  }
+
+  async executePlan(tasks: Task[]): Promise<void> {
+    const completed = new Set<string>();
+
+    while (completed.size < tasks.length) {
+      // Find tasks with satisfied dependencies
+      const ready = tasks.filter(t =>
+        t.status === 'pending' &&
+        t.dependencies.every(d => completed.has(d))
+      );
+
+      if (ready.length === 0) {
+        throw new Error('Dependency cycle detected');
+      }
+
+      // Execute ready tasks
+      await Promise.all(ready.map(async task => {
+        task.status = 'in_progress';
+        try {
+          task.result = await this.executeTask(task);
+          task.status = 'completed';
+          completed.add(task.id);
+        } catch (error) {
+          task.status = 'failed';
+          // Handle failure: retry, alternative, or abort
+        }
+      }));
+    }
+  }
+}
+```
+
+## Multi-Agent Systems
+
+Sometimes one agent isn't enough. Multi-agent systems can solve complex problems through collaboration.
+
+### Architecture Patterns
+
+**1. Manager-Worker Pattern**
+
+```
+┌─────────────┐
+│   Manager   │ ← Coordinates tasks
+└──────┬──────┘
+       │ delegates
+   ┌───┴───┐
+   │       │
+┌──▼──┐ ┌──▼──┐
+│Worker│ │Worker│ ← Execute specific tasks
+│  A   │ │  B   │
+└──────┘ └──────┘
+```
+
+**2. Peer-to-Peer Collaboration**
+
+```
+┌────────┐      ┌────────┐
+│ Agent A │←────→│ Agent B │
+└───┬────┘      └────┬───┘
+    │                │
+    └──────┬─────────┘
+           │
+      ┌────▼────┐
+      │ Agent C │
+      └─────────┘
+```
+
+### Implementation: Manager-Worker
+
+```typescript
+class ManagerAgent {
+  constructor(
+    private llm: LLMClient,
+    private workers: Map<string, WorkerAgent>
+  ) {}
+
+  async orchestrate(goal: string): Promise<any> {
+    // Step 1: Analyze task and determine subtasks
+    const analysis = await this.analyze(goal);
+
+    // Step 2: Assign subtasks to workers
+    const results = await Promise.all(
+      analysis.subtasks.map(async subtask => {
+        const worker = this.selectWorker(subtask.type);
+        return worker.execute(subtask);
+      })
+    );
+
+    // Step 3: Synthesize results
+    return this.synthesize(results);
+  }
+
+  private selectWorker(taskType: string): WorkerAgent {
+    // Route to specialized worker based on task type
+    const workerMap: Record<string, string> = {
+      'code': 'developer',
+      'research': 'researcher',
+      'writing': 'writer',
+      'analysis': 'analyst'
+    };
+
+    return this.workers.get(workerMap[taskType]) || this.workers.get('general')!;
+  }
+}
+
+class WorkerAgent {
+  constructor(
+    private name: string,
+    private specialty: string,
+    private tools: Tool[],
+    private llm: LLMClient
+  ) {}
+
+  async execute(task: Subtask): Promise<any> {
+    const agent = new ReActAgent(this.llm, this.tools);
+    return agent.run(`${this.specialty} task: ${task.description}`);
+  }
+}
+```
+
+## Production Considerations
+
+### Error Handling
+
+Agents fail. Plan for it.
+
+```typescript
+class RobustAgent {
+  async runWithRetry(goal: string, maxRetries: number = 3): Promise<string> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.run(goal);
+      } catch (error) {
+        if (attempt === maxRetries) {
+          // Final fallback: return error to user or use cached response
+          return this.fallbackResponse(goal, error);
+        }
+
+        // Wait before retry with exponential backoff
+        await sleep(Math.pow(2, attempt) * 1000);
+      }
+    }
+    throw new Error('Unreachable');
+  }
+
+  private fallbackResponse(goal: string, error: Error): string {
+    // Return a graceful failure message
+    return `I encountered an issue while processing your request: ${error.message}.
+Please try rephrasing or breaking down your request.`;
+  }
+}
+```
+
+### Observability
+
+```typescript
+interface AgentTelemetry {
+  traceId: string;
+  goal: string;
+  steps: StepTelemetry[];
+  duration: number;
+  tokenUsage: number;
+  success: boolean;
+  error?: string;
+}
+
+class ObservableAgent {
+  constructor(private telemetry: TelemetryClient) {}
+
+  async run(goal: string): Promise<string> {
+    const traceId = generateTraceId();
+    const startTime = Date.now();
+    const steps: StepTelemetry[] = [];
+
+    try {
+      const result = await this.executeWithTracing(goal, (step) => {
+        steps.push(step);
+      });
+
+      this.telemetry.record({
+        traceId,
+        goal,
+        steps,
+        duration: Date.now() - startTime,
+        tokenUsage: this.calculateTokens(steps),
+        success: true
+      });
+
+      return result;
+    } catch (error) {
+      this.telemetry.record({
+        traceId,
+        goal,
+        steps,
+        duration: Date.now() - startTime,
+        tokenUsage: this.calculateTokens(steps),
+        success: false,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+}
+```
+
+### Cost Control
+
+```typescript
+class CostControlledAgent {
+  private tokenBudget: number;
+  private tokensUsed: number = 0;
+
+  async run(goal: string): Promise<string> {
+    const agent = new ReActAgent(
+      this.createBudgetedLLM(),
+      this.tools,
+      10 // max iterations
+    );
+
+    return agent.run(goal);
+  }
+
+  private createBudgetedLLM(): LLMClient {
+    return {
+      complete: async (prompt: string) => {
+        const estimatedTokens = estimateTokens(prompt);
+
+        if (this.tokensUsed + estimatedTokens > this.tokenBudget) {
+          throw new Error('Token budget exceeded');
+        }
+
+        const response = await this.llm.complete(prompt);
+        this.tokensUsed += estimateTokens(response);
+
+        return response;
+      }
+    };
+  }
+}
+```
+
+## Real-World Example: Research Agent
+
+Here's a complete research agent that can search, read, and synthesize information:
+
+```typescript
+const researchAgent = new ReActAgent(
+  new ClaudeClient(),
+  new Map([
+    ['search_web', {
+      name: 'search_web',
+      description: 'Search the web for information',
+      execute: async ({ query }) => {
+        return await serper.search(query);
+      }
+    }],
+    ['fetch_page', {
+      name: 'fetch_page',
+      description: 'Fetch and extract content from a URL',
+      execute: async ({ url }) => {
+        return await firecrawl.scrape(url);
+      }
+    }],
+    ['read_pdf', {
+      name: 'read_pdf',
+      description: 'Extract text from a PDF document',
+      execute: async ({ url }) => {
+        return await pdfExtractor.extract(url);
+      }
+    }],
+    ['write_note', {
+      name: 'write_note',
+      description: 'Save a note to the research document',
+      execute: async ({ content }) => {
+        researchDoc.addNote(content);
+        return 'Note saved';
+      }
+    }],
+    ['complete_research', {
+      name: 'complete_research',
+      description: 'Finalize and format the research report',
+      execute: async () => {
+        return researchDoc.compile();
+      }
+    }]
+  ])
+);
+
+// Usage
+const report = await researchAgent.run(`
+  Research the latest developments in quantum computing in 2025.
+  Focus on practical applications and commercial progress.
+  Create a comprehensive report with citations.
+`);
+```
+
+## Framework Comparison
+
+| Framework | Best For | Learning Curve | Flexibility |
+|-----------|----------|----------------|-------------|
+| **LangChain** | Quick prototyping, extensive integrations | Medium | Medium |
+| **LlamaIndex** | RAG-heavy applications | Low | Medium |
+| **CrewAI** | Multi-agent workflows | Low | Low |
+| **AutoGen** | Complex multi-agent conversations | High | High |
+| **Custom** | Production systems | High | Maximum |
+
+My recommendation: Start with LangChain for prototypes, build custom for production.
+
+## The Future of AI Agents
+
+**Near-term (2025-2026)**:
+- Better tool use with structured outputs
+- Longer context windows reducing need for complex memory
+- Multi-modal agents (text + vision + audio)
+
+**Medium-term (2026-2027)**:
+- Agent-to-agent communication protocols
+- Standardized tool ecosystems
+- Self-improving agents
+
+**Long-term (2027+)**:
+- Fully autonomous agents for complex domains
+- Agent marketplaces
+- Human-agent collaboration at scale
+
+## Getting Started
+
+### Week 1: Build Your First Agent
+- Start with a simple ReAct agent
+- Give it 2-3 tools
+- Test on simple tasks
+
+### Week 2: Add Memory
+- Implement working memory
+- Add RAG for long-term memory
+- Test with multi-turn conversations
+
+### Week 3: Production Hardening
+- Add observability
+- Implement error handling
+- Set up cost controls
+
+### Week 4: Expand
+- Add more tools
+- Try multi-agent patterns
+- Optimize for your use case
+
+## Key Takeaways
+
+1. **ReAct is the foundation** - Explicit reasoning steps make agents reliable
+2. **Tool design matters** - Good tools make good agents
+3. **Memory is essential** - Agents need to remember across turns
+4. **Plan for failures** - Agents will fail; design for resilience
+5. **Observability is critical** - You can't improve what you can't see
+
+The shift from LLM apps to AI agents is as significant as the shift from static websites to web applications. Start building.
+
+---
+
+**Resources**:
+- [ReAct Paper](https://arxiv.org/abs/2210.03629)
+- [LangChain Documentation](https://python.langchain.com/)
+- [Claude Function Calling](https://docs.anthropic.com/claude/docs/tool-use)
+- [OpenAI Assistants API](https://platform.openai.com/docs/assistants)
+
+---
+
+*What kind of agent are you building? I'd love to hear about your use cases.*
+
+*This post distills lessons from building 5+ production agents over the past year. The field is evolving rapidly—expect updates.*
