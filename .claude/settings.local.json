@@ -24,7 +24,8 @@
       "Bash(grep -E \"^pubDate:\" src/content/**/*.mdx 2>/dev/null | grep -E \"2026-03-\\(1[6-9]|2[0-9]|3[0-1]\\)\" | head -20)",
       "WebFetch(domain:giscus.app)",
       "Bash(node scripts/verify-giscus.js)",
-      "Bash(mv scripts/verify-giscus.js scripts/verify-giscus.cjs && node scripts/verify-giscus.cjs)"
+      "Bash(mv scripts/verify-giscus.js scripts/verify-giscus.cjs && node scripts/verify-giscus.cjs)",
+      "Bash(grep \"^pubDate:\" src/content/tech/*.mdx | sort -t: -k2 -r | head -10)"
     ]
   }
 }
