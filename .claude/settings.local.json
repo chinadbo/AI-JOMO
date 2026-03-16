@@ -25,7 +25,8 @@
       "WebFetch(domain:giscus.app)",
       "Bash(node scripts/verify-giscus.js)",
       "Bash(mv scripts/verify-giscus.js scripts/verify-giscus.cjs && node scripts/verify-giscus.cjs)",
-      "Bash(grep \"^pubDate:\" src/content/tech/*.mdx | sort -t: -k2 -r | head -10)"
+      "Bash(grep \"^pubDate:\" src/content/tech/*.mdx | sort -t: -k2 -r | head -10)",
+      "Bash(git worktree:*)"
     ]
   }
 }

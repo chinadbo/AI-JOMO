@@ -294,7 +294,8 @@ You're refactoring React components to follow our new design system.
 
 echo "Running Claude Code review..."
 
-claude code review \
+# 使用 Claude Code CLI 分析变更文件
+claude review \
   --scope "staged-files" \
   --check "performance" \
   --check "security" \
@@ -352,13 +353,13 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Claude Code
-        uses: anthropic/claude-code-action@v1
+        uses: anthropics/claude-code-action@v0.1
         with:
           api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Run Comprehensive Review
         run: |
-          claude code review-pr \
+          claude review-pr \
             --pr ${{ github.event.pull_request.number }} \
             --checks architecture,performance,security,tests \
             --output-format markdown \
