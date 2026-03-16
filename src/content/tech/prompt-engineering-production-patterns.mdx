@@ -194,6 +194,18 @@ ${raw}`;
 }
 
 // Usage
+const DocumentSummarySchema = z.object({
+  mainTopic: z.string(),
+  keyPoints: z.array(z.string()),
+  actionableItems: z.array(z.object({
+   priority: z.enum(['high', 'medium', 'low']),
+      description: z.string(),
+      assignee: z.string().optional()
+    })),
+  sentiment: z.enum(['positive', 'negative', 'neutral']),
+  confidence: z.number()
+});
+
 const parser = new StructuredOutputParser(DocumentSummarySchema);
 const summary = await parser.parse(llmResponse);
 ```
@@ -845,11 +857,12 @@ class ResilientLLMClient {
 
   private async rawComplete(prompt: string, options?: LLMOptions): Promise<string> {
     // Actual LLM call
-    return await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await openai.chat.completions.create({
+   model: 'gpt-4',
       messages: [{ role: 'user', content: prompt }],
       ...options
     });
+    return response.choices[0]?.message?.content || '';
   }
 }
 ```
