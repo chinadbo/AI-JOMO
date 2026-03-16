@@ -1,0 +1,1224 @@
+---
+title: "Prompt Engineering Patterns: Production-Ready LLM Interactions"
+description: "Stop guessing with prompts. Learn the systematic patterns that separate amateur prompt hacking from production-grade LLM interactions: structured outputs, chaining strategies, defensive prompting, and more."
+pubDate: 2026-03-16
+updatedDate: 2026-03-16
+tags:
+  - Prompt Engineering
+  - LLM
+  - AI Engineering
+  - Production Systems
+  - Claude
+  - GPT-4
+  - Patterns
+  - Best Practices
+categories:
+  - AI/ML
+  - Engineering
+  - Developer Experience
+readingTime: 26
+draft: false
+author: Ioodu
+---
+
+## The Incident That Changed Everything
+
+It was the day before our big product launch when the Slack messages started flooding in.
+
+"The AI is giving completely wrong tax advice to users."
+
+"It just told someone they don't need to file taxes if they made under $50k. That's not true at all."
+
+"We need to shut down the feature now."
+
+Three months of development on our AI tax assistant were about to go down the drain. We had tested it extensively—or so we thought. But we had made a classic mistake: we tested with clean, straightforward prompts, not the messy, ambiguous, sometimes adversarial inputs real users would throw at it.
+
+The problem wasn't the model. It was our prompts. They were naive, brittle, and completely unprepared for the chaos of production.
+
+That night, I learned that prompt engineering isn't about finding clever tricks that work sometimes. It's about designing robust, reliable interactions that work at scale, under pressure, with unpredictable inputs.
+
+This post shares the patterns I've developed over two years of building production LLM systems—patterns that would have saved us from that launch day disaster.
+
+## Why Most Prompt Engineering Fails in Production
+
+### The Development vs. Production Gap
+
+| Environment | Inputs | Expectations | Failure Mode |
+|------------|--------|--------------|--------------|
+| Development | Clean, well-formed | "Reasonable" outputs | Obvious errors |
+| Production | Messy, ambiguous, adversarial | Reliable, consistent | Subtle failures |
+
+### The Three Fatal Assumptions
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              The Fatal Assumptions                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Assumption 1: Users will be clear and specific                 │
+│  Reality: "Help with taxes" is a typical input                  │
+│                                                                  │
+│  Assumption 2: The model will be consistent                     │
+│  Reality: Temperature > 0 means variance                        │
+│                                                                  │
+│  Assumption 3: If it works in testing, it works everywhere      │
+│  Reality: Edge cases are the rule, not the exception            │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**The uncomfortable truth**: A prompt that works 90% of the time is worse than useless in production. It's dangerous.
+
+## Pattern 1: Structured Output Design
+
+### The Problem with Free-Form Outputs
+
+```typescript
+// ❌ Bad: Free-form output
+const prompt = `Summarize this document: ${document}`;
+
+// Response varies wildly:
+// "This document discusses..."
+// "Summary: The main points are..."
+// "{content: "..."}" // Sometimes JSON, sometimes not
+```
+
+### Pattern: Schema-First Prompting
+
+```typescript
+// ✅ Good: Enforced structure
+interface DocumentSummary {
+  mainTopic: string;
+  keyPoints: string[];
+  actionableItems: Array<{
+    priority: 'high' | 'medium' | 'low';
+    description: string;
+    assignee?: string;
+  }>;
+  sentiment: 'positive' | 'negative' | 'neutral';
+  confidence: number; // 0-1
+}
+
+const prompt = `Analyze this document and respond with valid JSON.
+
+<Schema>
+{
+  "mainTopic": "string - The primary subject in 5-7 words",
+  "keyPoints": ["string - Each major point as a complete sentence"],
+  "actionableItems": [
+    {
+      "priority": "high|medium|low",
+      "description": "string - Clear action item",
+      "assignee": "string - Person mentioned or null"
+    }
+  ],
+  "sentiment": "positive|negative|neutral",
+  "confidence": "number 0.0-1.0 - How certain you are"
+}
+</Schema>
+
+<Rules>
+- mainTopic must be specific (not "business" but "Q3 revenue optimization")
+- keyPoints must include 3-5 items, no more, no less
+- actionableItems can be empty array if none
+- confidence reflects clarity of document, not your abilities
+- NEVER include markdown code blocks, just raw JSON
+</Rules>
+
+<Document>
+${document}
+</Document>`;
+```
+
+### Validation Layer
+
+```typescript
+class StructuredOutputParser<T> {
+  constructor(
+    private schema: z.ZodSchema<T>,
+    private maxRetries: number = 3
+  ) {}
+
+  async parse(rawOutput: string): Promise<T> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+      try {
+        // Clean up common LLM output issues
+        const cleaned = this.preprocess(rawOutput);
+
+        // Parse JSON
+        const parsed = JSON.parse(cleaned);
+
+        // Validate against schema
+        return this.schema.parse(parsed);
+      } catch (error) {
+        lastError = error as Error;
+
+        if (attempt < this.maxRetries - 1) {
+          // Try to repair common JSON issues
+          rawOutput = await this.attemptRepair(rawOutput, error.message);
+        }
+      }
+    }
+
+    throw new ParseError(
+      `Failed to parse structured output after ${this.maxRetries} attempts: ${lastError?.message}`,
+      rawOutput
+    );
+  }
+
+  private preprocess(raw: string): string {
+    return raw
+      // Remove markdown code blocks
+      .replace(/^```json\n?/, '')
+      .replace(/\n?```$/, '')
+      // Remove explanatory text before/after JSON
+      .replace(/^[^{]*/, '')
+      .replace(/[^}]*$/, '')
+      // Fix common LLM escaping issues
+      .replace(/\n/g, '\\n')
+      .replace(/\t/g, '\\t')
+      .trim();
+  }
+
+  private async attemptRepair(raw: string, errorMessage: string): Promise<string> {
+    const repairPrompt = `The following JSON has an error: ${errorMessage}
+
+Please fix it and return ONLY the corrected JSON:
+
+${raw}`;
+
+    return await llm.complete(repairPrompt);
+  }
+}
+
+// Usage
+const parser = new StructuredOutputParser(DocumentSummarySchema);
+const summary = await parser.parse(llmResponse);
+```
+
+## Pattern 2: Defensive Prompting
+
+### Input Validation Before Processing
+
+```typescript
+interface InputGuard {
+  check: (input: string) => Promise<GuardResult>;
+  severity: 'block' | 'warn' | 'log';
+}
+
+class DefensivePromptLayer {
+  private guards: InputGuard[] = [
+    // Guard 1: Empty or whitespace
+    {
+      check: async (input) => ({
+        passed: input.trim().length > 0,
+        message: 'Input is empty or whitespace only'
+      }),
+      severity: 'block'
+    },
+
+    // Guard 2: Maximum length
+    {
+      check: async (input) => ({
+        passed: input.length <= 10000,
+        message: `Input exceeds maximum length of 10000 characters (${input.length})`
+      }),
+      severity: 'block'
+    },
+
+    // Guard 3: Rate limiting context
+    {
+      check: async (input) => ({
+        passed: this.tokenCount(input) < 4000,
+        message: 'Input token count is very high, consider truncating'
+      }),
+      severity: 'warn'
+    },
+
+    // Guard 4: Adversarial pattern detection
+    {
+      check: async (input) => {
+        const adversarialPatterns = [
+          /ignore (?:previous|prior|above) instructions?/i,
+          /ignore (?:your )?programming/i,
+          /system (?:prompt|instruction)/i,
+          /you are now a/i,
+          /pretend you are/i,
+          /DAN|Do Anything Now/i,
+          /jailbreak/i
+        ];
+
+        const detected = adversarialPatterns.some(p => p.test(input));
+        return {
+          passed: !detected,
+          message: 'Potential adversarial pattern detected'
+        };
+      },
+      severity: 'block'
+    },
+
+    // Guard 5: Content classification
+    {
+      check: async (input) => {
+        const moderationResult = await openai.moderations.create({
+          input
+        });
+
+        const flagged = moderationResult.results[0].flagged;
+        return {
+          passed: !flagged,
+          message: 'Content flagged by moderation API',
+          details: moderationResult.results[0].categories
+        };
+      },
+      severity: 'block'
+    }
+  ];
+
+  async validate(input: string): Promise<ValidationResult> {
+    const results: GuardResult[] = [];
+
+    for (const guard of this.guards) {
+      const result = await guard.check(input);
+      results.push(result);
+
+      if (!result.passed && guard.severity === 'block') {
+        return {
+          valid: false,
+          blockedBy: guard.check.name,
+          message: result.message,
+          details: result.details
+        };
+      }
+    }
+
+    const warnings = results
+      .filter(r => !r.passed)
+      .map(r => r.message);
+
+    return { valid: true, warnings };
+  }
+}
+```
+
+### Safe Prompt Templates
+
+```typescript
+class SafePromptTemplate {
+  private escapeMap: Map<string, string> = new Map([
+    ['<', '&lt;'],
+    ['>', '&gt;'],
+    ['{', '&#123;'],
+    ['}', '&#125;']
+  ]);
+
+  // Escape user input to prevent prompt injection
+  escape(userInput: string): string {
+    return userInput.replace(/[<>{}]/g, char => this.escapeMap.get(char) || char);
+  }
+
+  // Build safe prompt with clear boundaries
+  build(systemPrompt: string, userInput: string, context?: string): string {
+    const escapedInput = this.escape(userInput);
+    const escapedContext = context ? this.escape(context) : '';
+
+    return `<|System|>
+${systemPrompt}
+<|EndSystem|>
+
+<|Context|>
+${escapedContext}
+<|EndContext|>
+
+<|UserInput|>
+${escapedInput}
+<|EndUserInput|>
+
+Respond following the system instructions above.`;
+  }
+}
+```
+
+## Pattern 3: Multi-Stage Prompting
+
+### The Problem with Monolithic Prompts
+
+```
+❌ Monolithic Approach:
+┌─────────────────────────────────────────────────┐
+│  Single massive prompt with:                    │
+│  - Instructions                                 │
+│  - Examples                                     │
+│  - Context                                      │
+│  - Constraints                                  │
+│  - Output format                                │
+│                                                 │
+│  Result: 4000 tokens, expensive, confused LLM   │
+└─────────────────────────────────────────────────┘
+```
+
+### Pattern: Chain of Responsibility
+
+```typescript
+interface ProcessingStage<TInput, TOutput> {
+  name: string;
+  process: (input: TInput) => Promise<TOutput>;
+  fallback?: (input: TInput, error: Error) => Promise<TOutput>;
+}
+
+class MultiStagePipeline<TInput, TOutput> {
+  constructor(private stages: ProcessingStage<any, any>[]) {}
+
+  async execute(input: TInput): Promise<TOutput> {
+    let currentValue: any = input;
+
+    for (const stage of this.stages) {
+      try {
+        currentValue = await stage.process(currentValue);
+      } catch (error) {
+        if (stage.fallback) {
+          console.warn(`Stage ${stage.name} failed, using fallback`);
+          currentValue = await stage.fallback(currentValue, error as Error);
+        } else {
+          throw new StageError(stage.name, error as Error);
+        }
+      }
+    }
+
+    return currentValue as TOutput;
+  }
+}
+
+// Example: Document Analysis Pipeline
+const documentPipeline = new MultiStagePipeline([
+  // Stage 1: Classification
+  {
+    name: 'classify',
+    process: async (doc: string) => {
+      const prompt = `Classify this document in one word: email, report, invoice, contract, or other.
+
+Document: ${doc.slice(0, 500)}...
+
+Category:`;
+
+      const category = await llm.complete(prompt, { temperature: 0 });
+      return { document: doc, category: category.trim().toLowerCase() };
+    }
+  },
+
+  // Stage 2: Extraction (different based on category)
+  {
+    name: 'extract',
+    process: async ({ document, category }) => {
+      const extractors: Record<string, string> = {
+        email: 'extract sender, recipients, subject, key points, action items',
+        invoice: 'extract vendor, amount, date, line items, total',
+        contract: 'extract parties, key terms, dates, obligations',
+        report: 'extract summary, key findings, recommendations'
+      };
+
+      const prompt = `Extract structured information from this ${category}.
+
+${extractors[category] || 'Extract key information'}
+
+Document: ${document}
+
+Respond as JSON.`;
+
+      const extraction = await llm.complete(prompt, { temperature: 0.1 });
+      return { document, category, extraction: JSON.parse(extraction) };
+    }
+  },
+
+  // Stage 3: Verification
+  {
+    name: 'verify',
+    process: async ({ document, category, extraction }) => {
+      const prompt = `Verify this extraction against the original document.
+Identify any missing information or errors.
+
+Original: ${document.slice(0, 1000)}
+Category: ${category}
+Extraction: ${JSON.stringify(extraction)}
+
+Report:
+- Accuracy: high/medium/low
+- Missing: [list]
+- Errors: [list]`;
+
+      const verification = await llm.complete(prompt, { temperature: 0 });
+      return { document, category, extraction, verification };
+    }
+  },
+
+  // Stage 4: Enrichment
+  {
+    name: 'enrich',
+    process: async (data) => {
+      // Add metadata, tags, relationships
+      const enriched = await addMetadata(data);
+      return enriched;
+    }
+  }
+]);
+```
+
+## Pattern 4: Few-Shot Optimization
+
+### Dynamic Example Selection
+
+```typescript
+interface Example {
+  input: string;
+  output: string;
+  embedding: number[];
+  tags: string[];
+  successRate: number;
+}
+
+class DynamicExampleSelector {
+  private examples: Example[] = [];
+  private embeddings: EmbeddingClient;
+
+  async loadExamples(examples: Example[]) {
+    // Pre-compute embeddings for all examples
+    for (const example of examples) {
+      example.embedding = await this.embeddings.embed(example.input);
+    }
+    this.examples = examples;
+  }
+
+  async selectExamples(
+    input: string,
+    count: number = 3
+  ): Promise<Example[]> {
+    const inputEmbedding = await this.embeddings.embed(input);
+
+    // Calculate similarity scores
+    const scored = this.examples.map(example => ({
+      example,
+      similarity: this.cosineSimilarity(inputEmbedding, example.embedding),
+      effectiveness: example.successRate // Weight by historical success
+    }));
+
+    // Sort by combined score (similarity * effectiveness)
+    scored.sort((a, b) =>
+      (b.similarity * b.effectiveness) - (a.similarity * a.effectiveness)
+    );
+
+    return scored.slice(0, count).map(s => s.example);
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
+    const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+    const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+    return dotProduct / (magnitudeA * magnitudeB);
+  }
+}
+
+// Usage
+const selector = new DynamicExampleSelector(embeddings);
+await selector.loadExamples(trainingExamples);
+
+async function buildPromptWithExamples(userInput: string): Promise<string> {
+  const relevantExamples = await selector.selectExamples(userInput, 3);
+
+  const examplesSection = relevantExamples
+    .map((ex, i) => `Example ${i + 1}:
+Input: ${ex.input}
+Output: ${ex.output}`)
+    .join('\n\n');
+
+  return `Follow the pattern shown in these examples:
+
+${examplesSection}
+
+Now process this input:
+Input: ${userInput}
+Output:`;
+}
+```
+
+### Example Quality Scoring
+
+```typescript
+class ExampleQualityAnalyzer {
+  // Score examples based on multiple dimensions
+  async analyze(example: Example): Promise<QualityScore> {
+    const scores = {
+      clarity: await this.scoreClarity(example),
+      diversity: await this.scoreDiversity(example),
+      consistency: await this.scoreConsistency(example),
+      difficulty: await this.scoreDifficulty(example)
+    };
+
+    return {
+      overall: Object.values(scores).reduce((a, b) => a + b) / 4,
+      ...scores
+    };
+  }
+
+  private async scoreClarity(example: Example): Promise<number> {
+    const prompt = `Rate the clarity of this example from 1-10.
+Consider:
+- Is the input unambiguous?
+- Is the output clearly correct?
+- Would a human agree this is the right answer?
+
+Example:
+Input: ${example.input}
+Output: ${example.output}
+
+Score (1-10):`;
+
+    const score = await llm.complete(prompt, { temperature: 0 });
+    return parseInt(score) / 10;
+  }
+
+  private async scoreDiversity(example: Example): Promise<number> {
+    // Check if example adds new patterns vs existing examples
+    // Implementation depends on your example library
+    return 0.8; // Placeholder
+  }
+
+  private async scoreConsistency(example: Example): Promise<number> {
+    // Test that multiple runs produce similar outputs
+    const outputs: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const out = await llm.complete(example.input, { temperature: 0.7 });
+      outputs.push(out);
+    }
+
+    // Calculate pairwise similarity
+    const similarities = [];
+    for (let i = 0; i < outputs.length; i++) {
+      for (let j = i + 1; j < outputs.length; j++) {
+        similarities.push(await this.semanticSimilarity(outputs[i], outputs[j]));
+      }
+    }
+
+    return similarities.reduce((a, b) => a + b) / similarities.length;
+  }
+
+  private async scoreDifficulty(example: Example): Promise<number> {
+    // Score based on complexity indicators
+    const factors = [
+      example.input.length > 500 ? 0.3 : 0,
+      example.output.length > 500 ? 0.3 : 0,
+      (example.input.match(/\?/g) || []).length > 2 ? 0.2 : 0,
+      /\b(if|when|unless|although|however)\b/i.test(example.input) ? 0.2 : 0
+    ];
+
+    return Math.min(1, factors.reduce((a, b) => a + b, 0.5));
+  }
+}
+```
+
+## Pattern 5: Context Management
+
+### Sliding Window with Summarization
+
+```typescript
+class ManagedContext {
+  private messages: Message[] = [];
+  private maxTokens: number;
+  private summarizationThreshold: number;
+
+  constructor(options: {
+    maxTokens: number;
+    summarizationThreshold?: number;
+  }) {
+    this.maxTokens = options.maxTokens;
+    this.summarizationThreshold = options.summarizationThreshold || 0.8;
+  }
+
+  add(message: Message): void {
+    this.messages.push(message);
+    this.manageSize();
+  }
+
+  private async manageSize(): Promise<void> {
+    const currentTokens = this.estimateTokens(this.messages);
+
+    if (currentTokens > this.maxTokens * this.summarizationThreshold) {
+      await this.compressHistory();
+    }
+
+    if (currentTokens > this.maxTokens) {
+      this.trimOldest();
+    }
+  }
+
+  private async compressHistory(): Promise<void> {
+    // Keep system message and most recent exchanges
+    const systemMessage = this.messages.find(m => m.role === 'system');
+    const recentMessages = this.messages.slice(-4);
+    const middleMessages = this.messages.slice(1, -4);
+
+    if (middleMessages.length < 2) return;
+
+    // Summarize the middle section
+    const summaryPrompt = `Summarize this conversation history concisely:
+
+${middleMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
+
+Summary (focus on key facts, decisions, and context):`;
+
+    const summary = await llm.complete(summaryPrompt, { temperature: 0 });
+
+    this.messages = [
+      systemMessage!,
+      { role: 'system', content: `Previous conversation summary: ${summary}` },
+      ...recentMessages
+    ];
+  }
+
+  private trimOldest(): void {
+    // Remove oldest non-system message
+    const firstNonSystem = this.messages.findIndex(m => m.role !== 'system');
+    if (firstNonSystem > -1) {
+      this.messages.splice(firstNonSystem, 1);
+    }
+  }
+
+  getMessages(): Message[] {
+    return [...this.messages];
+  }
+
+  private estimateTokens(messages: Message[]): number {
+    // Rough estimate: 4 chars per token
+    return messages.reduce((sum, m) => sum + m.content.length / 4, 0);
+  }
+}
+```
+
+### Hierarchical Context
+
+```typescript
+interface ContextLevel {
+  name: string;
+  content: string;
+  priority: number;
+  ttl?: number; // Time to live in seconds
+}
+
+class HierarchicalContext {
+  private levels: Map<string, ContextLevel> = new Map();
+  private accessTimes: Map<string, number> = new Map();
+
+  set(key: string, level: ContextLevel): void {
+    this.levels.set(key, level);
+    this.accessTimes.set(key, Date.now());
+  }
+
+  get(key: string): ContextLevel | undefined {
+    const level = this.levels.get(key);
+    if (level && level.ttl) {
+      const age = Date.now() - (this.accessTimes.get(key) || 0);
+      if (age > level.ttl * 1000) {
+        this.levels.delete(key);
+        return undefined;
+      }
+    }
+    return level;
+  }
+
+  buildPrompt(basePrompt: string, maxTokens: number): string {
+    // Sort by priority (highest first)
+    const sorted = Array.from(this.levels.entries())
+      .sort((a, b) => b[1].priority - a[1].priority);
+
+    let remainingTokens = maxTokens;
+    let contextParts: string[] = [];
+
+    for (const [key, level] of sorted) {
+      const tokens = level.content.length / 4; // Rough estimate
+
+      if (tokens <= remainingTokens) {
+        contextParts.push(`<${level.name}>\n${level.content}\n</${level.name}>`);
+        remainingTokens -= tokens;
+      } else {
+        // Try to truncate
+        const truncated = this.truncate(level.content, remainingTokens * 4);
+        if (truncated) {
+          contextParts.push(`<${level.name}>\n${truncated}...\n</${level.name}>`);
+        }
+        break;
+      }
+    }
+
+    return `${basePrompt}\n\n${contextParts.join('\n\n')}`;
+  }
+
+  private truncate(content: string, maxChars: number): string | null {
+    if (content.length <= maxChars) return content;
+
+    // Try to truncate at sentence boundary
+    const truncated = content.slice(0, maxChars);
+    const lastSentence = truncated.lastIndexOf('.');
+
+    if (lastSentence > maxChars * 0.7) {
+      return truncated.slice(0, lastSentence + 1);
+    }
+
+    // Fall back to word boundary
+    const lastSpace = truncated.lastIndexOf(' ');
+    if (lastSpace > maxChars * 0.8) {
+      return truncated.slice(0, lastSpace);
+    }
+
+    return truncated;
+  }
+}
+```
+
+## Pattern 6: Error Recovery and Retry
+
+### Intelligent Retry Strategy
+
+```typescript
+interface RetryConfig {
+  maxAttempts: number;
+  baseDelay: number;
+  maxDelay: number;
+  backoffMultiplier: number;
+  retryableErrors: string[];
+}
+
+class ResilientLLMClient {
+  private config: RetryConfig = {
+    maxAttempts: 3,
+    baseDelay: 1000,
+    maxDelay: 10000,
+    backoffMultiplier: 2,
+    retryableErrors: ['rate_limit', 'timeout', 'service_unavailable']
+  };
+
+  async complete(prompt: string, options?: LLMOptions): Promise<string> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < this.config.maxAttempts; attempt++) {
+      try {
+        return await this.rawComplete(prompt, options);
+      } catch (error) {
+        lastError = error as Error;
+
+        const errorInfo = this.parseError(error);
+
+        if (!this.isRetryable(errorInfo)) {
+          throw error;
+        }
+
+        if (attempt < this.config.maxAttempts - 1) {
+          const delay = this.calculateDelay(attempt, errorInfo);
+          console.warn(`Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+          await this.sleep(delay);
+        }
+      }
+    }
+
+    throw new MaxRetriesExceeded(lastError!);
+  }
+
+  private calculateDelay(attempt: number, errorInfo: ErrorInfo): number {
+    // Exponential backoff with jitter
+    const baseDelay = this.config.baseDelay *
+      Math.pow(this.config.backoffMultiplier, attempt);
+
+    // Add jitter (±25%)
+    const jitter = baseDelay * 0.25 * (Math.random() * 2 - 1);
+
+    // Respect Retry-After header if present
+    if (errorInfo.retryAfter) {
+      return Math.min(errorInfo.retryAfter * 1000, this.config.maxDelay);
+    }
+
+    return Math.min(baseDelay + jitter, this.config.maxDelay);
+  }
+
+  private isRetryable(errorInfo: ErrorInfo): boolean {
+    return this.config.retryableErrors.includes(errorInfo.code);
+  }
+
+  private async rawComplete(prompt: string, options?: LLMOptions): Promise<string> {
+    // Actual LLM call
+    return await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: prompt }],
+      ...options
+    });
+  }
+}
+```
+
+### Fallback Cascade
+
+```typescript
+class FallbackCascade {
+  private models: {
+    name: string;
+    client: LLMClient;
+    cost: number;
+    maxTokens: number;
+  }[] = [
+    { name: 'gpt-4', client: gpt4Client, cost: 0.03, maxTokens: 8192 },
+    { name: 'claude-3-opus', client: claudeClient, cost: 0.015, maxTokens: 200000 },
+    { name: 'gpt-3.5-turbo', client: gpt35Client, cost: 0.002, maxTokens: 4096 }
+  ];
+
+  async complete(prompt: string, options: RequestOptions): Promise<CompletionResult> {
+    const promptTokens = this.estimateTokens(prompt);
+    const eligibleModels = this.models.filter(m =>
+      m.maxTokens >= promptTokens + (options.maxResponseTokens || 1000)
+    );
+
+    for (let i = 0; i < eligibleModels.length; i++) {
+      const model = eligibleModels[i];
+
+      try {
+        const startTime = Date.now();
+        const response = await model.client.complete(prompt, options);
+        const latency = Date.now() - startTime;
+
+        return {
+          response,
+          model: model.name,
+          cost: model.cost * (promptTokens + this.estimateTokens(response)),
+          latency,
+          usedFallback: i > 0
+        };
+      } catch (error) {
+        console.warn(`${model.name} failed:`, error);
+
+        // If this is the last model, throw the error
+        if (i === eligibleModels.length - 1) {
+          throw new AllModelsFailedError(error as Error);
+        }
+      }
+    }
+
+    throw new Error('No models available');
+  }
+}
+```
+
+## Pattern 7: Prompt Versioning and A/B Testing
+
+```typescript
+interface PromptVersion {
+  id: string;
+  content: string;
+  createdAt: Date;
+  metrics: {
+    totalCalls: number;
+    avgLatency: number;
+    successRate: number;
+    userSatisfaction: number;
+  };
+}
+
+class PromptRegistry {
+  private versions: Map<string, PromptVersion[]> = new Map();
+  private currentTest: ABTest | null = null;
+
+  register(name: string, content: string): PromptVersion {
+    const version: PromptVersion = {
+      id: `${name}-${Date.now()}`,
+      content,
+      createdAt: new Date(),
+      metrics: {
+        totalCalls: 0,
+        avgLatency: 0,
+        successRate: 0,
+        userSatisfaction: 0
+      }
+    };
+
+    if (!this.versions.has(name)) {
+      this.versions.set(name, []);
+    }
+    this.versions.get(name)!.push(version);
+
+    return version;
+  }
+
+  getVersion(name: string, versionId?: string): PromptVersion {
+    const versions = this.versions.get(name);
+    if (!versions || versions.length === 0) {
+      throw new Error(`No versions found for prompt: ${name}`);
+    }
+
+    if (versionId) {
+      const version = versions.find(v => v.id === versionId);
+      if (!version) {
+        throw new Error(`Version ${versionId} not found`);
+      }
+      return version;
+    }
+
+    // Return latest
+    return versions[versions.length - 1];
+  }
+
+  startABTest(name: string, variants: string[]): ABTest {
+    const versions = variants.map((v, i) =>
+      this.register(`${name}-variant-${i}`, v)
+    );
+
+    this.currentTest = {
+      name,
+      variants: versions.map(v => v.id),
+      trafficSplit: variants.map(() => 1 / variants.length),
+      results: new Map()
+    };
+
+    return this.currentTest;
+  }
+
+  selectVariant(testName: string): PromptVersion {
+    if (!this.currentTest || this.currentTest.name !== testName) {
+      throw new Error('No active A/B test');
+    }
+
+    // Weighted random selection
+    const random = Math.random();
+    let cumulative = 0;
+
+    for (let i = 0; i < this.currentTest.variants.length; i++) {
+      cumulative += this.currentTest.trafficSplit[i];
+      if (random <= cumulative) {
+        return this.getVersion(testName, this.currentTest.variants[i]);
+      }
+    }
+
+    return this.getVersion(testName, this.currentTest.variants[0]);
+  }
+
+  recordMetrics(versionId: string, metrics: Partial<PromptVersion['metrics']>): void {
+    // Update metrics for version
+    for (const versions of this.versions.values()) {
+      const version = versions.find(v => v.id === versionId);
+      if (version) {
+        Object.assign(version.metrics, metrics);
+        break;
+      }
+    }
+  }
+}
+```
+
+## Pattern 8: Output Post-Processing
+
+### Consistency Enforcement
+
+```typescript
+class OutputPostProcessor {
+  private processors: OutputProcessor[] = [
+    new TrimProcessor(),
+    new FormatProcessor(),
+    new SafetyProcessor(),
+    new ConsistencyProcessor()
+  ];
+
+  async process(rawOutput: string, context: ProcessingContext): Promise<string> {
+    let output = rawOutput;
+
+    for (const processor of this.processors) {
+      output = await processor.process(output, context);
+    }
+
+    return output;
+  }
+}
+
+// Individual processors
+class TrimProcessor implements OutputProcessor {
+  process(output: string): string {
+    return output
+      .trim()
+      // Remove thinking/reasoning artifacts
+      .replace(/^(Let me think|Thinking:|Analysis:)[\s\S]*?\n\n/, '')
+      // Remove markdown code block markers if present
+      .replace(/^```\w*\n/, '')
+      .replace(/\n```$/, '')
+      // Remove leading "Response:" or "Answer:" labels
+      .replace(/^(Response|Answer|Output):\s*/i, '');
+  }
+}
+
+class FormatProcessor implements OutputProcessor {
+  process(output: string, context: ProcessingContext): string {
+    // Ensure proper formatting based on expected type
+    switch (context.expectedFormat) {
+      case 'json':
+        return this.ensureValidJson(output);
+      case 'markdown':
+        return this.ensureValidMarkdown(output);
+      case 'plain':
+        return this.stripFormatting(output);
+      default:
+        return output;
+    }
+  }
+
+  private ensureValidJson(output: string): string {
+    try {
+      JSON.parse(output);
+      return output;
+    } catch {
+      // Try to extract JSON from text
+      const jsonMatch = output.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (jsonMatch) {
+        try {
+          JSON.parse(jsonMatch[0]);
+          return jsonMatch[0];
+        } catch {
+          // Return as string if not valid JSON
+          return JSON.stringify({ error: 'Invalid JSON in response', raw: output });
+        }
+      }
+      return JSON.stringify({ response: output });
+    }
+  }
+
+  private ensureValidMarkdown(output: string): string {
+    // Ensure proper heading hierarchy
+    return output.replace(/^(#{3,})/gm, '##');
+  }
+
+  private stripFormatting(output: string): string {
+    return output
+      .replace(/\*\*/g, '')
+      .replace(/__/g, '')
+      .replace(/`{1,3}/g, '');
+  }
+}
+
+class SafetyProcessor implements OutputProcessor {
+  private forbiddenPatterns = [
+    /\b(password|secret|key|token)\s*[=:]\s*\S+/gi,
+    /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, // Credit cards
+    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g // Emails
+  ];
+
+  process(output: string): string {
+    let sanitized = output;
+
+    for (const pattern of this.forbiddenPatterns) {
+      sanitized = sanitized.replace(pattern, '[REDACTED]');
+    }
+
+    return sanitized;
+  }
+}
+```
+
+## Production Checklist
+
+Before shipping any prompt-based system:
+
+### Input Handling
+- [ ] Empty/whitespace inputs handled gracefully
+- [ ] Maximum length limits enforced
+- [ ] Malicious/adversarial inputs detected
+- [ ] Content moderation applied
+- [ ] Special characters escaped properly
+
+### Prompt Design
+- [ ] Clear instructions with explicit constraints
+- [ ] Few-shot examples for complex tasks
+- [ ] Output format specified (JSON, markdown, etc.)
+- [ ] Temperature appropriate for use case (0 for deterministic)
+- [ ] Max tokens set to prevent runaway generation
+
+### Error Handling
+- [ ] Parse errors caught and handled
+- [ ] Timeout handling implemented
+- [ ] Retry logic with exponential backoff
+- [ ] Fallback models configured
+- [ ] Circuit breaker for repeated failures
+
+### Output Processing
+- [ ] Output validated against expected format
+- [ ] Consistency checks applied
+- [ ] Safety/redaction filters in place
+- [ ] Length limits enforced
+- [ ] Quality scoring implemented
+
+### Monitoring
+- [ ] Latency tracked and alerted
+- [ ] Error rates monitored
+- [ ] Cost per request calculated
+- [ ] Input/output logged (with PII protection)
+- [ ] A/B test results tracked
+
+## Framework Comparison
+
+| Pattern | When to Use | Complexity | Impact |
+|---------|-------------|------------|--------|
+| **Structured Output** | Always | Low | High |
+| **Defensive Prompting** | User-facing apps | Medium | Critical |
+| **Multi-Stage** | Complex tasks | High | High |
+| **Dynamic Few-Shot** | Domain-specific tasks | Medium | Medium |
+| **Context Management** | Conversational apps | Medium | High |
+| **Retry/Fallback** | Production systems | Low | Critical |
+
+## Key Takeaways
+
+1. **Prompt engineering is software engineering**: Apply the same rigor—testing, validation, error handling, monitoring—that you would to any critical system.
+
+2. **Assume inputs are hostile**: Users will try to break your prompts. Plan for it.
+
+3. **Structure beats cleverness**: A well-structured, explicit prompt beats a clever hack every time.
+
+4. **Measure everything**: You can't improve what you don't measure. Track latency, cost, accuracy, and user satisfaction.
+
+5. **Fail gracefully**: When LLMs fail (and they will), your system should degrade gracefully, not catastrophically.
+
+6. **Version your prompts**: Treat prompts like code—version them, test them, and roll back when needed.
+
+7. **Production is different**: What works in development often fails in production. Test with real data, real users, real constraints.
+
+## Action Plan
+
+### This Week
+- [ ] Audit your existing prompts for the patterns in this post
+- [ ] Implement input validation layer
+- [ ] Add structured output parsing
+
+### This Month
+- [ ] Set up prompt versioning system
+- [ ] Implement retry/fallback logic
+- [ ] Add comprehensive monitoring
+
+### This Quarter
+- [ ] Build internal prompt evaluation framework
+- [ ] Establish prompt review process
+- [ ] Train team on production prompt patterns
+
+---
+
+## Resources
+
+**Documentation**:
+- [OpenAI Prompt Engineering Guide](https://platform.openai.com/docs/guides/prompt-engineering)
+- [Claude Documentation](https://docs.anthropic.com/claude/docs/prompt-engineering)
+- [Prompt Engineering Patterns](https://github.com/microsoft/prompt-engine)
+
+**Tools**:
+- [LangChain](https://langchain.com/) - Prompt management and chaining
+- [PromptLayer](https://promptlayer.com/) - Prompt versioning and analytics
+- [Weights & Biases Prompts](https://wandb.ai/site/prompts) - Experiment tracking
+
+**Research**:
+- ["A Prompt Pattern Catalog" Paper](https://arxiv.org/abs/2302.11382)
+- ["Structured Generation"](https://github.com/outlines-dev/outlines)
+
+---
+
+*This post was written after learning these lessons the hard way. The tax assistant incident taught me that production LLM systems require production-grade engineering. Don't skip the fundamentals.*
+
+*Have you encountered prompt engineering challenges in production? I'd love to hear about your patterns and anti-patterns.*
