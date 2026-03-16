@@ -223,8 +223,13 @@ const navLinks = [
 
     <!-- Command Palette Trigger Script -->
     <script>
+      // Expose global function to open command palette
+      (window as any).openCommandPalette = () => {
+        window.dispatchEvent(new CustomEvent('open-command-palette'));
+      };
+
       document.getElementById('cmd-k-trigger')?.addEventListener('click', () => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+        (window as any).openCommandPalette();
       });
 
       // Mobile menu toggle

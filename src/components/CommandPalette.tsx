@@ -23,24 +23,36 @@ interface CommandPaletteProps {
 }
 
 export default function CommandPalette({ items }: CommandPaletteProps) {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  // Listen for keyboard shortcuts
+  const open = useCallback(() => setIsOpen(true), []);
+  const close = useCallback(() => setIsOpen(false), []);
+  const toggle = useCallback(() => setIsOpen((prev) => !prev), []);
+
+  // Listen for keyboard shortcuts and custom events
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((open) => !open);
+        toggle();
       }
       if (e.key === 'Escape') {
-        setOpen(false);
+        close();
       }
     };
 
+    const handleOpen = () => {
+      open();
+    };
+
     document.addEventListener('keydown', down);
-    return () => document.removeEventListener('keydown', down);
-  }, []);
+    window.addEventListener('open-command-palette', handleOpen);
+    return () => {
+      document.removeEventListener('keydown', down);
+      window.removeEventListener('open-command-palette', handleOpen);
+    };
+  }, [toggle, close, open]);
 
   // Handle command execution
   const handleSelect = useCallback((item: SearchItem) => {
@@ -64,8 +76,8 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
       // Navigate to article page
       window.location.href = item.url;
     }
-    setOpen(false);
-  }, []);
+    close();
+  }, [close]);
 
   // Built-in commands list
   const commands: SearchItem[] = [
@@ -114,7 +126,7 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
       ]
     : [...commands, ...items];
 
-  if (!open) {
+  if (!isOpen) {
     return null;
   }
 
@@ -123,7 +135,7 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={() => setOpen(false)}
+        onClick={close}
       />
 
       {/* Command Palette */}
@@ -141,7 +153,7 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
               placeholder="Search articles or run commands..."
               className="flex-1 px-3 py-4 bg-transparent outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
-            <button onClick={() => setOpen(false)} className="p-1">
+            <button onClick={close} className="p-1">
               <X className="w-4 h-4 text-slate-400" />
             </button>
           </div>
