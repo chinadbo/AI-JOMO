@@ -1,0 +1,376 @@
+---
+title: "The AI Engineering Portfolio: Projects That Get You Hired in 2026"
+description: "Stop building toy projects. Here are 7 portfolio projects that actually demonstrate AI engineering skills hiring managers want to see."
+pubDate: 2026-03-17
+tags: ["career", "ai-engineering", "portfolio", "job-search", "machine-learning"]
+author: "Ioodu"
+readingTime: 12
+---
+
+# The AI Engineering Portfolio: Projects That Get You Hired in 2026
+
+You've taken the courses. You've built the "predict housing prices" model. You've even deployed a simple Flask app to Heroku. But your applications are still getting rejected, or worse—ghosted entirely.
+
+Here's the uncomfortable truth: **Most AI engineering portfolios fail because they demonstrate student skills, not professional capabilities.**
+
+Hiring managers at top tech companies aren't looking for people who can train a ResNet on CIFAR-10. They're looking for engineers who can ship AI systems that solve real business problems, handle production traffic, and integrate with existing infrastructure.
+
+This post will show you exactly what to build.
+
+## What Hiring Managers Actually Look For
+
+After interviewing at and working with teams from OpenAI, Anthropic, Google, and numerous startups, I've identified the five capabilities that separate hired candidates from rejected ones:
+
+1. **End-to-end system thinking** — Can you build the full pipeline, not just the model?
+2. **Production awareness** — Do you understand latency, cost, reliability, and observability?
+3. **Data engineering chops** — Can you handle messy real-world data at scale?
+4. **Evaluation rigor** — Do you know how to measure success beyond accuracy?
+5. **Integration skills** — Can you make AI work within existing systems?
+
+The projects below are designed to demonstrate each of these capabilities.
+
+---
+
+## Project 1: Production-Grade RAG Pipeline
+
+**Why this matters**: RAG (Retrieval-Augmented Generation) is the dominant architecture for production LLM applications. Every company is building some form of it.
+
+**What to build**: A document Q&A system that can handle thousands of PDFs with sub-500ms latency and high accuracy.
+
+**Technical requirements**:
+- Chunking strategy with semantic boundaries (not just character counts)
+- Vector database with metadata filtering (Pinecone, Weaviate, or pgvector)
+- Hybrid search (dense + sparse retrieval)
+- Re-ranking layer (Cohere Rerank or cross-encoders)
+- Caching layer for common queries
+- Streaming responses
+- Source attribution in outputs
+
+**Make it impressive**:
+- Add a feedback mechanism (thumbs up/down) and store it
+- Implement query rewriting for better retrieval
+- Show cost tracking per query (OpenAI API costs + embedding costs)
+- Deploy with auto-scaling based on queue depth
+
+**GitHub structure to show**:
+```
+rag-pipeline/
+├── src/
+│   ├── ingestion/         # PDF parsing, chunking, embedding
+│   ├── retrieval/         # Search, re-ranking, caching
+│   ├── generation/        # LLM calls, prompting, streaming
+│   └── api/              # FastAPI endpoints
+├── tests/                # Unit + integration tests
+├── eval/                 # Evaluation framework
+├── infra/                # Terraform/Docker configs
+└── README.md            # Architecture diagram, setup, demo
+```
+
+---
+
+## Project 2: Multi-Agent Workflow System
+
+**Why this matters**: Single LLM calls are hitting limits. The future is multi-agent systems where specialized agents collaborate on complex tasks.
+
+**What to build**: A content creation pipeline where:
+- Research Agent gathers information
+- Writer Agent drafts content
+- Editor Agent reviews and suggests improvements
+- Fact-Checker Agent verifies claims
+- Formatter Agent produces final output
+
+**Technical requirements**:
+- Agent orchestration (LangGraph, CrewAI, or custom state machine)
+- Inter-agent communication protocol
+- Shared memory/state management
+- Error handling and retry logic
+- Human-in-the-loop checkpoints
+- Cost tracking per agent and per workflow
+
+**Make it impressive**:
+- Add observability (LangSmith or custom tracing)
+- Show execution graphs/timelines
+- Implement agent self-correction loops
+- Benchmark against single-agent baseline
+- Deploy with real-time monitoring dashboard
+
+**Key code to highlight**:
+```python
+# Show your orchestration logic
+class WorkflowEngine:
+    def execute(self, task: Task) -> Result:
+        state = self.initialize_state(task)
+
+        while not self.is_complete(state):
+            agent = self.select_next_agent(state)
+            observation = agent.execute(state)
+            state = self.update_state(state, observation)
+
+            # Human checkpoint for critical decisions
+            if self.requires_approval(state):
+                state = self.await_human_input(state)
+
+        return self.compile_result(state)
+```
+
+---
+
+## Project 3: Fine-tuned Domain Model
+
+**Why this matters**: Generic models are commodities. The value is in specialized models that outperform GPT-4 on specific tasks.
+
+**What to build**: A fine-tuned model that beats GPT-4 on a narrow task (e.g., code review, support ticket classification, or medical note extraction).
+
+**Technical requirements**:
+- Dataset curation (500-5000 high-quality examples)
+- Baseline evaluation with GPT-4/Claude
+- LoRA/QLoRA fine-tuning (efficient, cost-effective)
+- Quantization for deployment
+- A/B testing framework
+- Continuous evaluation pipeline
+
+**Make it impressive**:
+- Show before/after metrics with statistical significance
+- Document your dataset creation process
+- Implement active learning to improve the dataset over time
+- Deploy with model versioning and rollback capability
+- Show cost savings vs. using GPT-4 (often 10-100x cheaper)
+
+**Evaluation to show**:
+```
+Task: Support Ticket Classification
+GPT-4 Accuracy: 87.3% | Cost: $0.12/query
+Fine-tuned Model Accuracy: 91.7% | Cost: $0.002/query
+Latency: 89ms vs 2.3s
+```
+
+---
+
+## Project 4: LLM Evaluation Framework
+
+**Why this matters**: Companies desperately need engineers who understand that "vibe checks" aren't evaluation. Rigorous evaluation is what separates demos from products.
+
+**What to build**: A comprehensive evaluation suite for an LLM application with:
+- Automated test case generation
+- Multiple evaluation metrics (accuracy, relevance, hallucination detection)
+- Regression testing
+- Human evaluation integration
+- A/B test framework
+
+**Technical requirements**:
+- Structured test cases with expected outputs
+- LLM-as-judge implementation with rubrics
+- Statistical significance testing
+- Bias detection in model outputs
+- Performance benchmarking (latency, cost, token usage)
+- CI/CD integration (fail builds on quality regression)
+
+**Make it impressive**:
+- Generate test cases from production logs
+- Implement adversarial testing (jailbreak attempts, edge cases)
+- Show evaluation drift over time
+- Create a dashboard for tracking metrics
+- Open-source the framework (great for visibility)
+
+**Sample evaluation code**:
+```python
+@dataclass
+class EvaluationResult:
+    accuracy: float
+    relevance_score: float
+    hallucination_rate: float
+    avg_latency: float
+    cost_per_query: float
+
+class LLMEvaluator:
+    def evaluate(self, model: Model, test_cases: List[TestCase]) -> EvaluationResult:
+        results = [self.run_single(model, tc) for tc in test_cases]
+
+        return EvaluationResult(
+            accuracy=mean([r.correct for r in results]),
+            relevance_score=self.calculate_relevance(results),
+            hallucination_rate=self.detect_hallucinations(results),
+            avg_latency=mean([r.latency for r in results]),
+            cost_per_query=mean([r.cost for r in results])
+        )
+```
+
+---
+
+## Project 5: AI-Assisted Code Review Tool
+
+**Why this matters**: Developer productivity tools are a massive market. GitHub Copilot has proven the demand; now companies want custom solutions.
+
+**What to build**: A code review assistant that:
+- Analyzes pull requests automatically
+- Detects bugs, security issues, and anti-patterns
+- Suggests specific improvements with explanations
+- Learns from your team's coding standards
+- Integrates with GitHub/GitLab
+
+**Technical requirements**:
+- AST parsing for code understanding
+- Static analysis integration (Semgrep, Bandit, ESLint)
+- LLM integration for complex analysis
+- GitHub Actions/GitLab CI integration
+- Inline comment API usage
+- Configuration system for custom rules
+
+**Make it impressive**:
+- Show real bug catches from open-source repos
+- Implement incremental review (only changed lines)
+- Add learning from past reviews (what did team accept/reject?)
+- Create a web dashboard for review analytics
+- Benchmark against GitHub Copilot and CodeRabbit
+
+---
+
+## Project 6: Automated Data Pipeline with AI
+
+**Why this matters**: Data is the bottleneck for most AI projects. Engineers who can build data pipelines that feed models automatically are incredibly valuable.
+
+**What to build**: An end-to-end data pipeline that:
+- Scrapes/ingests data from multiple sources
+- Cleans and validates data automatically
+- Uses LLMs for unstructured data extraction
+- Detects data drift and quality issues
+- Feeds a training pipeline
+
+**Technical requirements**:
+- Workflow orchestration (Airflow, Prefect, or Dagster)
+- Data validation (Great Expectations or Pandera)
+- Schema evolution handling
+- Incremental processing
+- Error handling and dead letter queues
+- Monitoring and alerting
+
+**Make it impressive**:
+- Show data lineage (where did this training example come from?)
+- Implement automated data quality reports
+- Add synthetic data generation for edge cases
+- Show cost optimization (process only changed data)
+- Create a data catalog with automatic documentation
+
+---
+
+## Project 7: Real-Time AI Inference API
+
+**Why this matters**: Batch predictions are easy. Real-time, low-latency inference at scale is where senior engineers prove themselves.
+
+**What to build**: A production inference service that:
+- Handles 1000+ requests/second
+- Has {'<'}100ms p99 latency
+- Implements model versioning and A/B testing
+- Includes request/response logging
+- Auto-scales based on traffic
+- Has comprehensive monitoring
+
+**Technical requirements**:
+- FastAPI or Rust-based service
+- Model optimization (ONNX, TensorRT, or quantization)
+- Batching (dynamic batching for efficiency)
+- Redis caching for common requests
+- Load balancing and health checks
+- Prometheus metrics + Grafana dashboards
+
+**Make it impressive**:
+- Load testing results (k6 or Locust)
+- Cost analysis at different scale points
+- Comparison of different deployment strategies
+- Cold start optimization results
+- Show graceful model updates (zero downtime)
+
+**Architecture diagram to include**:
+```
+[Load Balancer] → [API Gateway] → [FastAPI Service]
+                                           ↓
+                [Redis Cache] ← [Model Inference] ← [Model Registry]
+                                           ↓
+                                    [Metrics/Logs]
+```
+
+---
+
+## How to Present Each Project
+
+Having great projects isn't enough. You need to present them professionally:
+
+### README Structure
+1. **One-liner**: What it does and why it matters
+2. **Demo**: GIF or video of it working
+3. **Architecture**: Diagram showing components
+4. **Key technical decisions**: Why you chose X over Y
+5. **Results**: Metrics, benchmarks, outcomes
+6. **What I learned**: Challenges and solutions
+
+### GitHub Profile
+- Pin your 3-4 best projects
+- Use GitHub Actions for CI/CD badges
+- Include architecture diagrams (use Mermaid or Excalidraw)
+- Write blog posts about your learnings from each project
+
+### Portfolio Website
+- Live demos where possible
+- Case study format (problem → solution → results)
+- Testimonials if you've deployed for users
+- Metrics and impact prominently displayed
+
+---
+
+## Common Mistakes to Avoid
+
+### 1. The Jupyter Notebook Trap
+Don't just upload notebooks. Build deployable systems with tests, CI/CD, and documentation.
+
+### 2. Using MNIST/CIFAR-10
+These datasets scream "I followed a tutorial." Use real, messy data.
+
+### 3. Ignoring the Business Context
+Always explain: Who would use this? What problem does it solve? How would it make money?
+
+### 4. Perfectionism Paralysis
+Ship something working, then iterate. A deployed project with known limitations beats a perfect project that never launches.
+
+### 5. Not Showing Your Work
+Document your failures and pivots. "Attempted X, failed because Y, pivoted to Z" shows engineering maturity.
+
+---
+
+## Action Plan: Build Your Portfolio in 90 Days
+
+**Weeks 1-3**: Project 1 (RAG Pipeline)
+- Most in-demand skill
+- Foundation for other projects
+
+**Weeks 4-6**: Project 4 (Evaluation Framework)
+- Can be applied to all other projects
+- Shows professional rigor
+
+**Weeks 7-9**: Pick one of Projects 2, 3, 5, 6, or 7 based on your target role
+- Multi-agent for research/platform roles
+- Fine-tuning for ML engineer roles
+- Code review for developer tools roles
+- Data pipeline for data/ML engineer roles
+- Real-time inference for infrastructure-heavy roles
+
+**Weeks 10-12**: Polish, document, and deploy
+- Write comprehensive READMEs
+- Create architecture diagrams
+- Record demo videos
+- Deploy live versions
+
+---
+
+## Conclusion
+
+The AI engineering job market is competitive, but it's not mysterious. Companies need engineers who can ship production systems, not just train models in notebooks.
+
+Build these projects. Document them well. Deploy them publicly. **Your portfolio is your proof of work**—make it count.
+
+If you're serious about transitioning into AI engineering, pick one project from this list and start today. In 90 days, you'll have a portfolio that stands out from the thousands of "I completed a Coursera course" applicants.
+
+---
+
+*What project are you planning to build? I'd love to hear about it—reach out on [Twitter](https://twitter.com) or send me an email.*
+
+*Want more career advice? Check out my other essays on [senior engineer mindset](/essays/senior-engineer-mindset) and [the art of mentorship](/essays/art-of-mentorship).*
