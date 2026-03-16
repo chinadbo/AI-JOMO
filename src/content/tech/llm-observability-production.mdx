@@ -1,0 +1,848 @@
+---
+title: "LLM Observability in Production: Beyond Logs and Metrics"
+description: "Production LLM systems fail silently. Learn how to implement comprehensive observability: distributed tracing for agent workflows, cost attribution, prompt versioning telemetry, and debugging strategies for when AI goes wrong."
+pubDate: 2026-03-16
+updatedDate: 2026-03-16
+tags:
+  - LLM Observability
+  - AI Engineering
+  - Production Systems
+  - Monitoring
+  - Distributed Tracing
+  - Claude
+  - OpenTelemetry
+categories:
+  - AI/ML
+  - Engineering
+  - DevOps
+readingTime: 24
+draft: false
+author: Ioodu
+---
+
+## The Silent Failure
+
+It started with a single customer complaint.
+
+"Your AI gave me completely wrong pricing for the enterprise plan. It quoted $5,000 when it should have been $50,000."
+
+I checked the logs. The API call succeeded with a 200 OK. The response was generated in 1.2 seconds. No errors, no exceptions. Our dashboards showed green across the board.
+
+But the AI had hallucinated. It invented a pricing tier that didn't exist.
+
+This is the terrifying reality of production LLM systems: **they fail silently**. Traditional monitoring—logs, metrics, alerts—catches infrastructure failures. But LLM failures are semantic. The system works perfectly while producing nonsense.
+
+That incident cost us a potential $500,000 deal and taught me that LLM observability requires a fundamentally different approach. This post covers the observability stack I've built since then.
+
+## Why Traditional Observability Fails for LLMs
+
+### The Semantic Gap
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Traditional Monitoring                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Metric: HTTP 200 OK              ✅ PASS                   │
+│  Metric: Latency 1.2s             ✅ PASS (< 2s threshold)   │
+│  Metric: Error rate 0%            ✅ PASS                   │
+│                                                              │
+│  Reality: Response is completely hallucinated               │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Traditional observability tracks system health. LLM observability must track **cognitive correctness**.
+
+### The Black Box Problem
+
+| Traditional API | LLM API |
+|-----------------|---------|
+| Deterministic: Same input → Same output | Stochastic: Same input → Variable output |
+| Failures are binary (crash/timeout) | Failures are gradient (subtle quality degradation) |
+| Debug with stack traces | Debug with reasoning traces |
+| Regression tests are stable | Regression tests are probabilistic |
+
+### The Cost Transparency Problem
+
+```
+User Request
+    ↓
+┌─────────────────────────────────────────────────────────┐
+│  Your API Server                                        │
+│  ├─ Processing: $0.001                                  │
+│  └─ Response time: 50ms                                 │
+└─────────────────────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────────────────────┐
+│  LLM Provider                                           │
+│  ├─ Input tokens: 4,500 ($0.0135)                       │
+│  ├─ Output tokens: 1,200 ($0.036)                       │
+│  └─ Response time: 1150ms                               │
+└─────────────────────────────────────────────────────────┘
+    ↓
+Total cost: $0.0505 (hidden from your metrics!)
+```
+
+## The Four Pillars of LLM Observability
+
+### Pillar 1: Request Tracing
+
+Every LLM call must be traceable from end to end.
+
+```typescript
+interface LLMTrace {
+  traceId: string;
+  spanId: string;
+  parentSpanId?: string;
+
+  // Timing
+  startTime: Date;
+  endTime: Date;
+  timeToFirstToken?: number; // Streaming latency
+
+  // Request details
+  model: string;
+  provider: 'openai' | 'anthropic' | 'azure' | 'local';
+  messages: Message[];
+  parameters: {
+    temperature: number;
+    maxTokens: number;
+    topP?: number;
+    frequencyPenalty?: number;
+  };
+
+  // Token usage
+  tokenUsage: {
+    prompt: number;
+    completion: number;
+    total: number;
+  };
+
+  // Cost (calculated)
+  cost: {
+    input: number;
+    output: number;
+    total: number;
+    currency: string;
+  };
+
+  // Response
+  response?: string;
+  finishReason?: 'stop' | 'length' | 'content_filter' | 'error';
+
+  // Quality signals (populated by evaluation layer)
+  qualityMetrics?: {
+    latencyScore: number;
+    tokenEfficiency: number;
+    confidence?: number;
+  };
+
+  // Error details
+  error?: {
+    type: string;
+    message: string;
+    retryable: boolean;
+  };
+}
+```
+
+### Pillar 2: Prompt Versioning Telemetry
+
+Track which prompt version produced which output.
+
+```typescript
+interface PromptVersion {
+  id: string;
+  hash: string; // SHA-256 of normalized prompt
+  content: string;
+  version: number;
+  createdAt: Date;
+  createdBy: string;
+
+  // Performance metrics (aggregated)
+  metrics: {
+    totalCalls: number;
+    avgLatency: number;
+    avgTokensPerCall: number;
+    avgCostPerCall: number;
+    userSatisfactionScore: number;
+    hallucinationRate: number;
+  };
+}
+
+// Example: Track prompt drift
+class PromptDriftDetector {
+  async detectDrift(
+    promptId: string,
+    timeWindow: number = 86400000 // 24 hours
+  ): Promise<DriftReport> {
+    const metrics = await this.getMetrics(promptId, timeWindow);
+
+    return {
+      promptId,
+      detected: this.isDrifting(metrics),
+      indicators: {
+        // Response time drift
+        latencyDrift: this.calculateDrift(
+          metrics.current.avgLatency,
+          metrics.baseline.avgLatency
+        ),
+
+        // Token usage drift (can indicate prompt bloating)
+        tokenDrift: this.calculateDrift(
+          metrics.current.avgTokensPerCall,
+          metrics.baseline.avgTokensPerCall
+        ),
+
+        // Quality drift
+        qualityDrift: this.calculateDrift(
+          metrics.current.userSatisfactionScore,
+          metrics.baseline.userSatisfactionScore
+        ),
+
+        // Cost drift
+        costDrift: this.calculateDrift(
+          metrics.current.avgCostPerCall,
+          metrics.baseline.avgCostPerCall
+        )
+      },
+      recommendation: this.generateRecommendation(metrics)
+    };
+  }
+}
+```
+
+### Pillar 3: Chain-of-Thought Visibility
+
+For agent systems, trace the reasoning process.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Agent Execution Trace                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  [14:32:01] ┌─ User Query: "What's my account balance?"          │
+│             │                                                    │
+│             │  Step 1: Intent Classification                     │
+│             │  ├── Model: gpt-3.5-turbo                          │
+│             │  ├── Latency: 245ms                                │
+│             │  ├── Tokens: 150 in / 25 out                       │
+│             │  └── Output: {"intent": "balance_inquiry",          │
+│             │               "confidence": 0.97}                    │
+│             │                                                    │
+│             │  Step 2: Authentication Check                      │
+│             │  ├── Tool: verify_auth_token                       │
+│             │  ├── Latency: 15ms                                 │
+│             │  └── Output: { "authenticated": true,               │
+│             │               "user_id": "usr_12345" }               │
+│             │                                                    │
+│             │  Step 3: Database Query                            │
+│             │  ├── Tool: fetch_balance                           │
+│             │  ├── Parameters: { "user_id": "usr_12345" }          │
+│             │  ├── Latency: 89ms                                 │
+│             │  └── Output: { "balance": 15420.50,                 │
+│             │               "currency": "USD" }                    │
+│             │                                                    │
+│             │  Step 4: Response Generation                         │
+│             │  ├── Model: gpt-4                                  │
+│             │  ├── Latency: 892ms                                │
+│             │  ├── Tokens: 280 in / 45 out                       │
+│             │  └── Output: "Your current balance is $15,420.50"  │
+│             │                                                    │
+│             └─ Total Latency: 1,241ms                            │
+│                Total Cost: $0.0042                               │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Pillar 4: Quality Evaluation at Runtime
+
+```typescript
+interface QualityEvaluator {
+  // Evaluate response quality in real-time
+  evaluate(trace: LLMTrace): Promise<QualityScore>;
+}
+
+class CompositeQualityEvaluator implements QualityEvaluator {
+  private evaluators: QualityEvaluator[] = [
+    new HallucinationDetector(),
+    new ToneConsistencyChecker(),
+    new SafetyChecker(),
+    new FormatValidator()
+  ];
+
+  async evaluate(trace: LLMTrace): Promise<QualityScore> {
+    const scores = await Promise.all(
+      this.evaluators.map(e => e.evaluate(trace))
+    );
+
+    return {
+      overall: this.weightedAverage(scores),
+      dimensions: scores,
+      passed: scores.every(s => s.score >= s.threshold),
+      flags: scores.filter(s => s.score < s.threshold)
+    };
+  }
+}
+
+// Example: Hallucination detection using self-consistency
+class HallucinationDetector implements QualityEvaluator {
+  async evaluate(trace: LLMTrace): Promise<QualityScore> {
+    // Generate multiple responses to the same prompt
+    const variations = await Promise.all(
+      Array(3).fill(null).map(() =>
+        this.llm.complete(trace.messages, {
+          temperature: 0.7, // Higher temp for variation
+          maxTokens: trace.tokenUsage.completion
+        })
+      )
+    );
+
+    // Check consistency
+    const similarities = await this.pairwiseSimilarity([
+      trace.response!,
+      ...variations
+    ]);
+
+    const avgSimilarity = similarities.reduce((a, b) => a + b) / similarities.length;
+
+    return {
+      dimension: 'hallucination_risk',
+      score: avgSimilarity, // Higher = more consistent = lower hallucination risk
+      threshold: 0.75,
+      metadata: {
+        consistencyScore: avgSimilarity,
+        variationCount: variations.length
+      }
+    };
+  }
+}
+```
+
+## Implementing LLM Observability
+
+### OpenTelemetry Integration
+
+```typescript
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { Resource } from '@opentelemetry/resources';
+import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+
+// Initialize OpenTelemetry with LLM-specific resource attributes
+const sdk = new NodeSDK({
+  resource: new Resource({
+    [SemanticResourceAttributes.SERVICE_NAME]: 'llm-service',
+    [SemanticResourceAttributes.SERVICE_VERSION]: '1.0.0',
+    'llm.provider': 'anthropic',
+    'llm.model.default': 'claude-3-opus'
+  }),
+  traceExporter: new OTLPTraceExporter({
+    url: 'http://otel-collector:4318/v1/traces'
+  })
+});
+
+// Custom LLM instrumentation
+class LLMInstrumentation {
+  private tracer = trace.getTracer('llm-client');
+
+  async instrumentedCompletion(
+    request: CompletionRequest
+  ): Promise<CompletionResponse> {
+    const span = this.tracer.startSpan('llm.completion', {
+      attributes: {
+        'llm.model': request.model,
+        'llm.provider': request.provider,
+        'llm.request.tokens': this.estimateTokens(request.messages),
+        'llm.parameters.temperature': request.temperature,
+        'llm.parameters.max_tokens': request.maxTokens
+      }
+    });
+
+    try {
+      const startTime = Date.now();
+      const response = await this.llm.complete(request);
+      const latency = Date.now() - startTime;
+
+      // Record successful completion
+      span.setAttributes({
+        'llm.response.tokens': response.usage.completionTokens,
+        'llm.response.latency_ms': latency,
+        'llm.cost.total': this.calculateCost(request.model, response.usage),
+        'llm.finish_reason': response.finishReason
+      });
+
+      span.setStatus({ code: SpanStatusCode.OK });
+
+      return response;
+    } catch (error) {
+      span.recordException(error as Error);
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: (error as Error).message
+      });
+      throw error;
+    } finally {
+      span.end();
+    }
+  }
+}
+```
+
+### Cost Attribution Dashboard
+
+```typescript
+interface CostBreakdown {
+  // By user
+  byUser: Map<string, {
+    totalCost: number;
+    requestCount: number;
+    avgCostPerRequest: number;
+    topModels: string[];
+  }>;
+
+  // By feature
+  byFeature: Map<string, {
+    totalCost: number;
+    percentageOfTotal: number;
+    costTrend: 'up' | 'down' | 'stable';
+  }>;
+
+  // By prompt version
+  byPromptVersion: Map<string, {
+    version: string;
+    costPerRequest: number;
+    qualityScore: number;
+    efficiency: number; // quality / cost
+  }>;
+
+  // By time
+  byTime: Array<{
+    hour: string;
+    cost: number;
+    requests: number;
+    anomaly: boolean;
+  }>;
+}
+
+// Alert on cost anomalies
+class CostAnomalyDetector {
+  async detectAnomalies(
+    window: TimeWindow
+  ): Promise<Anomaly[]> {
+    const metrics = await this.getCostMetrics(window);
+    const baseline = await this.getBaseline(window);
+
+    const anomalies: Anomaly[] = [];
+
+    // Check for unexpected cost spikes
+    if (metrics.totalCost > baseline.expectedCost * 1.5) {
+      anomalies.push({
+        type: 'cost_spike',
+        severity: 'high',
+        message: `Cost exceeded expected by ${
+          ((metrics.totalCost / baseline.expectedCost - 1) * 100).toFixed(1)
+        }%`,
+        details: {
+          expected: baseline.expectedCost,
+          actual: metrics.totalCost,
+          diff: metrics.totalCost - baseline.expectedCost
+        }
+      });
+    }
+
+    // Check for inefficient prompts
+    const inefficientPrompts = metrics.byPromptVersion
+      .filter(p => p.efficiency < 0.5);
+
+    for (const prompt of inefficientPrompts) {
+      anomalies.push({
+        type: 'inefficient_prompt',
+        severity: 'medium',
+        message: `Prompt version ${prompt.version} has low efficiency`,
+        details: prompt
+      });
+    }
+
+    return anomalies;
+  }
+}
+```
+
+### Real-Time Quality Monitoring
+
+```typescript
+class QualityMonitor {
+  private metrics: Map<string, RunningStats> = new Map();
+
+  async record(trace: LLMTrace, evaluation: QualityScore): Promise<void> {
+    const key = `${trace.model}:${trace.promptVersion}`;
+
+    if (!this.metrics.has(key)) {
+      this.metrics.set(key, new RunningStats());
+    }
+
+    const stats = this.metrics.get(key)!;
+    stats.add({
+      timestamp: new Date(),
+      quality: evaluation.overall,
+      latency: trace.endTime.getTime() - trace.startTime.getTime(),
+      cost: trace.cost.total,
+      tokens: trace.tokenUsage.total
+    });
+
+    // Check for degradation
+    if (this.isDegrading(stats)) {
+      await this.alertDegradation(key, stats);
+    }
+  }
+
+  private isDegrading(stats: RunningStats): boolean {
+    // Quality dropping over last hour
+    const hourAgo = Date.now() - 3600000;
+    const recent = stats.filter(s => s.timestamp.getTime() > hourAgo);
+    const older = stats.filter(s => s.timestamp.getTime() <= hourAgo);
+
+    if (recent.length < 10 || older.length < 10) return false;
+
+    const recentAvg = recent.reduce((a, s) => a + s.quality, 0) / recent.length;
+    const olderAvg = older.reduce((a, s) => a + s.quality, 0) / older.length;
+
+    return recentAvg < olderAvg * 0.85; // 15% degradation threshold
+  }
+}
+```
+
+## Debugging Production Issues
+
+### The Replay Debugger
+
+When something goes wrong, replay the exact scenario.
+
+```typescript
+class LLMReplayDebugger {
+  async captureTrace(traceId: string): Promise<ReplaySession> {
+    const trace = await this.traceStore.get(traceId);
+
+    return {
+      original: trace,
+
+      // Re-run with same parameters
+      async replay(): Promise<ReplayResult> {
+        const response = await this.llm.complete({
+          model: trace.model,
+          messages: trace.messages,
+          temperature: trace.parameters.temperature,
+          maxTokens: trace.parameters.maxTokens
+        });
+
+        return {
+          original: trace.response,
+          replay: response,
+          similarity: await this.calculateSimilarity(
+            trace.response!,
+            response
+          ),
+          differences: this.findDifferences(trace.response!, response)
+        };
+      },
+
+      // Re-run with variations
+      async whatIf(variations: ParameterVariation[]): Promise<WhatIfResult[]> {
+        const results: WhatIfResult[] = [];
+
+        for (const variation of variations) {
+          const response = await this.llm.complete({
+            ...trace,
+            ...variation
+          });
+
+          results.push({
+            variation,
+            response,
+            quality: await this.evaluateQuality(response)
+          });
+        }
+
+        return results;
+      }
+    };
+  }
+}
+
+// Usage
+const session = await debugger.captureTrace('trace_12345');
+
+// See if we can reproduce
+const replay = await session.replay();
+console.log(`Similarity: ${replay.similarity}`); // If low, model has changed
+
+// Test different approaches
+const alternatives = await session.whatIf([
+  { temperature: 0 },      // More deterministic
+  { model: 'gpt-4' },      // Different model
+  { maxTokens: 2048 }      // More room to respond
+]);
+```
+
+### Root Cause Analysis Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Debugging Flow                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  User reports issue                                              │
+│       ↓                                                          │
+│  Find trace by user_id + timestamp                               │
+│       ↓                                                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Check: Did prompt change?                               │    │
+│  │  └─ Compare prompt hash with known good version          │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│       ↓                                                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Check: Did model behavior drift?                        │    │
+│  │  └─ Replay trace, compare similarity                     │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│       ↓                                                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Check: Did context change?                              │    │
+│  │  └─ Compare RAG results, database state                  │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│       ↓                                                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Check: Was input ambiguous?                             │    │
+│  │  └─ Analyze user input, check for edge cases             │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│       ↓                                                          │
+│  Generate fix: Update prompt, add guardrails, or escalate       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Building Your Observability Stack
+
+### Minimal Viable Observability
+
+Start with these essentials:
+
+```typescript
+// 1. Wrap your LLM client
+class ObservableLLMClient {
+  async complete(request: Request): Promise<Response> {
+    const trace = await this.startTrace(request);
+
+    try {
+      const response = await this.llm.complete(request);
+
+      await this.recordSuccess(trace, response);
+      await this.evaluateQuality(trace, response);
+
+      return response;
+    } catch (error) {
+      await this.recordError(trace, error);
+      throw error;
+    }
+  }
+}
+
+// 2. Log structured data
+logger.info('llm_completion', {
+  trace_id: trace.id,
+  model: request.model,
+  tokens_in: response.usage.promptTokens,
+  tokens_out: response.usage.completionTokens,
+  cost: calculateCost(response.usage),
+  latency_ms: duration,
+  quality_score: evaluation.score
+});
+
+// 3. Set up basic alerts
+alertManager.register({
+  name: 'llm_quality_degradation',
+  condition: 'quality_score < 0.7 for 5 minutes',
+  severity: 'critical',
+  action: 'page_oncall'
+});
+
+alertManager.register({
+  name: 'llm_cost_spike',
+  condition: 'hourly_cost > baseline * 2',
+  severity: 'warning',
+  action: 'slack_alert'
+});
+```
+
+### Production-Grade Stack
+
+| Layer | Tool | Purpose |
+|-------|------|---------|
+| Tracing | OpenTelemetry + Jaeger | Distributed tracing |
+| Metrics | Prometheus + Grafana | Time-series metrics |
+| Logging | ELK Stack / Loki | Structured logging |
+| Cost | Custom + Metronome | Cost attribution |
+| Quality | Custom evaluators | Runtime quality checks |
+| A/B Testing | Statsig / LaunchDarkly | Prompt experimentation |
+
+### Key Metrics Dashboard
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    LLM Service Health                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐             │
+│  │  Requests    │ │   Latency    │ │    Cost      │             │
+│  │  ┌────────┐  │ │  ┌────────┐  │ │  ┌────────┐  │             │
+│  │  │  1,247 │  │ │  │ 892ms  │  │ │  │ $45.20 │  │             │
+│  │  │  +12%  │  │ │  │ -5%   │  │ │  │ +23%  │  │             │
+│  │  └────────┘  │ │  └────────┘  │ │  └────────┘  │             │
+│  └──────────────┘ └──────────────┘ └──────────────┘             │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Quality Score Over Time                                 │    │
+│  │                                                          │    │
+│  │  1.0 ┤                                    ●──●           │    │
+│  │  0.8 ┤      ●────●                    ●──┘               │    │
+│  │  0.6 ┤  ●──┘      └──●    ●────●──┘                      │    │
+│  │  0.4 ┤                  └──┘                             │    │
+│  │      └────┬────┬────┬────┬────┬────┬────┬────┬────      │    │
+│  │          08  10  12  14  16  18  20  22  00              │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Top Issues (Last 24h)                                   │    │
+│  │  1. Hallucination in pricing responses (23 incidents)   │    │
+│  │  2. High latency on complex queries (avg 2.3s)          │    │
+│  │  3. Token limit exceeded (17 cases)                      │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Common Pitfalls
+
+### Pitfall 1: Logging Everything
+
+```typescript
+// ❌ Bad: Logging full prompts and responses
+logger.info('LLM call', { prompt, response });
+// Result: Massive log volume, potential PII leaks
+
+// ✅ Good: Log structured metadata
+logger.info('llm_completion', {
+  prompt_hash: hash(prompt),
+  response_hash: hash(response),
+  tokens_in: usage.promptTokens,
+  tokens_out: usage.completionTokens,
+  latency_ms: duration,
+  // Only log full content in debug mode or for errors
+});
+```
+
+### Pitfall 2: Ignoring Token Costs
+
+```typescript
+// ❌ Bad: No cost tracking
+const response = await openai.chat.completions.create({
+  model: 'gpt-4',
+  messages: largeContext // Could be $5+ per call
+});
+
+// ✅ Good: Cost-aware client
+const response = await costAwareClient.complete({
+  messages,
+  budget: 0.10, // Max $0.10 per request
+  onBudgetExceeded: () => {
+    // Fall back to cheaper model or truncate context
+    return { model: 'gpt-3.5-turbo' };
+  }
+});
+```
+
+### Pitfall 3: Sampling-Based Tracing
+
+```typescript
+// ❌ Bad: Sampling can miss critical traces
+const sampler = new TraceIdRatioBasedSampler(0.1); // 10% sample
+
+// ✅ Good: Always trace LLM calls, sample the rest
+const sampler = {
+  shouldSample(context, traceId, spanName) {
+    if (spanName.startsWith('llm.')) {
+      return { decision: SamplingDecision.RECORD_AND_SAMPLED };
+    }
+    return { decision: SamplingDecision.NOT_RECORD };
+  }
+};
+```
+
+## Key Takeaways
+
+1. **LLM failures are semantic, not syntactic** — Traditional monitoring misses the most critical failures. Build quality evaluation into your observability stack.
+
+2. **Trace the full chain** — For agent systems, visibility into each step is essential. A black box agent is a liability.
+
+3. **Track costs per request** — LLM costs scale with usage. Without per-request tracking, you can't optimize or attribute costs.
+
+4. **Version your prompts** — Prompt changes are code changes. Track versions and their performance over time.
+
+5. **Automate quality checks** — Don't wait for user complaints. Detect hallucinations and quality degradation automatically.
+
+6. **Design for debugging** — When things go wrong, you need to replay, compare, and understand. Build debugging tools from day one.
+
+7. **Alert on symptoms, not causes** — Alert on quality degradation and cost anomalies, not just errors.
+
+## Implementation Checklist
+
+### Week 1: Basic Tracing
+- [ ] Instrument all LLM calls with OpenTelemetry
+- [ ] Log request/response metadata (not content)
+- [ ] Set up latency and token usage dashboards
+- [ ] Create basic cost tracking
+
+### Week 2: Quality Metrics
+- [ ] Implement runtime quality evaluation
+- [ ] Add hallucination detection
+- [ ] Set up quality degradation alerts
+- [ ] Create prompt versioning system
+
+### Week 3: Advanced Observability
+- [ ] Build replay debugger
+- [ ] Implement cost attribution by user/feature
+- [ ] Set up A/B testing for prompts
+- [ ] Create runbook for common issues
+
+### Week 4: Optimization
+- [ ] Analyze traces for optimization opportunities
+- [ ] Implement caching for common queries
+- [ ] Set up automatic prompt performance reports
+- [ ] Train team on observability tools
+
+---
+
+## Resources
+
+**Tools**:
+- [OpenTelemetry](https://opentelemetry.io/) - Industry-standard observability framework
+- [LangSmith](https://smith.langchain.com/) - LangChain's observability platform
+- [PromptLayer](https://promptlayer.com/) - Prompt management and observability
+- [Weights & Biases](https://wandb.ai/site) - ML experiment tracking with LLM support
+
+**Reference Architectures**:
+- [OpenTelemetry LLM Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/)
+- [LLM Monitoring Best Practices](https://docs.anthropic.com/claude/docs/monitoring)
+
+**Further Reading**:
+- [The LLM Observability Gap](https://www.anthropic.com/research/observability)
+- [Production ML Systems](https://mlops.systems/)
+
+---
+
+*That pricing hallucination incident was a turning point. We now have comprehensive observability across all our LLM systems, and we've caught dozens of issues before they reached customers. The investment in observability has paid for itself many times over.*
+
+*What observability challenges are you facing with your LLM systems? I'd love to hear about your approaches.*
+
+*This post reflects patterns developed over 18 months of running LLM systems in production, processing millions of requests per month across multiple models and use cases.*
