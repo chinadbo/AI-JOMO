@@ -157,7 +157,7 @@ const navLinks = [
           </button>
 
           <!-- Theme Toggle -->
-          <ThemeToggle client:load />
+          <ThemeToggle client:load transition:persist />
         </div>
       </nav>
     </header>
@@ -219,7 +219,7 @@ const navLinks = [
     </footer>
 
     <!-- Command Palette -->
-    <CommandPalette client:load items={searchItems} />
+    <CommandPalette client:load transition:persist items={searchItems} />
 
     <!-- Command Palette Trigger Script -->
     <script>
