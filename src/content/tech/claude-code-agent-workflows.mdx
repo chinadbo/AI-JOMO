@@ -1,0 +1,705 @@
+---
+title: "Building AI Agents with Claude Code: A Practical Guide to Agentic Workflows"
+description: "A hands-on guide to building production-ready AI agents using Claude Code. Learn agentic patterns, tool integration, and multi-step workflows that actually work."
+pubDate: 2026-03-17
+tags: ["claude-code", "ai-agents", "agentic-workflows", "anthropic", "automation", "developer-tools"]
+author: "Ioodu"
+readingTime: 15
+---
+
+# Building AI Agents with Claude Code: A Practical Guide to Agentic Workflows
+
+Claude Code isn't just a better autocomplete. It's a new paradigm for software development where you collaborate with an AI agent that can reason, plan, and execute complex tasks autonomously.
+
+But here's the thing most tutorials miss: **Building agents that actually work in production is fundamentally different from building demos.**
+
+This guide will show you how to build production-ready AI agents using Claude Code—agents that handle errors gracefully, maintain state across long-running tasks, and integrate with your existing tools.
+
+## What Makes Claude Code Different
+
+Before we dive into building agents, let's understand why Claude Code is uniquely suited for agentic workflows:
+
+### 1. **Tool-Use Architecture**
+Unlike traditional AI coding assistants that suggest completions, Claude Code uses a tool-use architecture where the AI can:
+- Read and write files
+- Execute shell commands
+- Search codebases
+- Run tests
+- Make API calls
+- Interact with version control
+
+This isn't just autocomplete—it's an agent with hands.
+
+### 2. **Stateful Conversations**
+Claude Code maintains context across your entire session. It remembers:
+- Files you've been working on
+- Decisions you've made
+- Errors you've encountered
+- Your codebase's structure
+
+This statefulness enables true agentic workflows.
+
+### 3. **Extensible Command System**
+With `.claude/commands/`, you can define custom agent behaviors:
+```bash
+# Define complex workflows as reusable commands
+claude /refactor-component
+claude /generate-tests
+claude /deploy-staging
+```
+
+## Core Concepts: Tools, State, and Memory
+
+Every production agent needs three things:
+
+### Tools
+Tools are functions the agent can call to interact with the world:
+```typescript
+interface Tool {
+  name: string;
+  description: string;
+  parameters: JSONSchema;
+  execute: (args: any) => Promise<any>;
+}
+```
+
+### State
+State tracks what the agent is doing and what it has done:
+```typescript
+interface AgentState {
+  currentTask: string;
+  completedSteps: string[];
+  errors: Error[];
+  context: Record<string, any>;
+}
+```
+
+### Memory
+Memory persists information across sessions:
+- **Short-term**: Current conversation context
+- **Long-term**: Learned patterns, codebase knowledge
+- **External**: Vector databases, file storage
+
+## Building Your First Agent: File Organizer
+
+Let's start with a practical agent that organizes your downloads folder.
+
+### Step 1: Create the Agent Command
+
+Create `.claude/commands/organize-files.md`:
+
+```markdown
+---
+description: Organize downloads folder by file type
+---
+
+Organize the files in ~/Downloads by type:
+1. Images (.jpg, .png, .gif) → ~/Downloads/Images/
+2. Documents (.pdf, .docx, .txt) → ~/Downloads/Documents/
+3. Archives (.zip, .tar.gz) → ~/Downloads/Archives/
+4. Code files (.js, .ts, .py) → ~/Downloads/Code/
+5. Everything else → ~/Downloads/Misc/
+
+For each file:
+- Check if it's already in the right place
+- Create directories if they don't exist
+- Handle naming conflicts (append number)
+- Log all actions taken
+
+Before moving anything, show me the plan and ask for confirmation.
+```
+
+### Step 2: Run It
+
+```bash
+claude /organize-files
+```
+
+### Step 3: Make It Smarter
+
+Add intelligence to the agent:
+
+```markdown
+---
+description: Smart file organizer with duplicate detection
+---
+
+Organize the downloads folder with these enhancements:
+
+1. **Detect Duplicates**: Check SHA256 hash before moving
+2. **Smart Naming**: Extract dates from filenames for organization
+3. **Cloud Integration**: Upload large files (>100MB) to S3
+4. **Index Creation**: Create a searchable index of all files
+5. **Cleanup**: Delete empty directories
+
+State Management:
+- Track processed files to avoid re-processing
+- Save state to ~/.claude/agents/file-organizer/state.json
+- Resume from interruptions
+
+Error Handling:
+- If a file is locked, skip and log
+- If disk space is low, pause and alert
+- If cloud upload fails, retry with exponential backoff
+```
+
+## Agent Pattern 2: Code Review Agent
+
+Now let's build something more complex—a code review agent that actually understands your codebase.
+
+### The Command
+
+Create `.claude/commands/code-review.md`:
+
+```markdown
+---
+description: Comprehensive code review with context awareness
+---
+
+Perform a thorough code review of the current changes:
+
+1. **Understand the Context**:
+   - Read PR description or commit message
+   - Check related files and dependencies
+   - Review recent changes in the same area
+   - Look for related issues or documentation
+
+2. **Static Analysis**:
+   - Check for common anti-patterns
+   - Verify error handling coverage
+   - Look for performance issues
+   - Check for security vulnerabilities
+   - Verify test coverage
+
+3. **Architecture Review**:
+   - Does this fit the existing patterns?
+   - Are there better abstraction choices?
+   - Is this maintainable?
+   - Could this be simplified?
+
+4. **Documentation Check**:
+   - Are there docstrings/comments?
+   - Is the "why" explained?
+   - Are there examples?
+
+5. **Output Format**:
+
+   ## Summary
+   - Risk level: LOW/MEDIUM/HIGH
+   - Main concerns: [list]
+   - Recommendations: [list]
+
+   ## Detailed Findings
+   - [File:Line] [Severity] [Issue] [Suggestion]
+
+   ## Positive Notes
+   - [What was done well]
+```
+
+### Enhancing with Custom Tools
+
+Add a tool for fetching PR context:
+
+```typescript
+// .claude/tools/github-context.ts
+import { execSync } from 'child_process';
+
+export async function getPRContext() {
+  const branch = execSync('git branch --show-current').toString().trim();
+
+  // Get PR description if it exists
+  const prDescription = execSync(
+    `gh pr view ${branch} --json body 2>/dev/null || echo "No PR found"`,
+    { encoding: 'utf-8' }
+  );
+
+  // Get recent commits
+  const recentCommits = execSync(
+    'git log --oneline -10',
+    { encoding: 'utf-8' }
+  );
+
+  // Get changed files
+  const changedFiles = execSync(
+    'git diff --name-only HEAD',
+    { encoding: 'utf-8' }
+  ).split('\n').filter(f => f);
+
+  return {
+    branch,
+    prDescription,
+    recentCommits,
+    changedFiles
+  };
+}
+```
+
+## Agent Pattern 3: Multi-Step Research Agent
+
+This agent performs deep research by breaking down complex queries into sub-tasks.
+
+### The Command
+
+```markdown
+---
+description: Deep research agent with multi-step reasoning
+---
+
+Act as a research assistant for the topic: "$ARGUMENTS"
+
+Follow this workflow:
+
+Phase 1: Query Understanding
+- Break down the topic into 3-5 sub-questions
+- Identify key concepts to research
+- Define what "complete" looks like
+
+Phase 2: Information Gathering
+- Search the codebase for relevant code
+- Look for documentation and comments
+- Check for related issues or PRs
+- Review external resources if needed
+
+Phase 3: Synthesis
+- Organize findings by theme
+- Identify patterns and insights
+- Note contradictions or gaps
+- Form conclusions
+
+Phase 4: Output
+Create a research report with:
+- Executive summary
+- Detailed findings
+- Code examples
+- Recommendations
+- Further reading
+
+State Tracking:
+Save progress to .claude/agents/research/state.json
+- Current phase
+- Questions answered
+- Open questions
+- Sources consulted
+```
+
+### Example Usage
+
+```bash
+claude /research "How does our authentication system work and where are the security vulnerabilities?"
+```
+
+The agent will:
+1. Find all auth-related files
+2. Analyze the flow
+3. Check for security issues
+4. Generate a comprehensive report
+
+## Advanced: Multi-Agent Orchestration
+
+For complex tasks, use multiple agents working together:
+
+```typescript
+// orchestration-agent.ts
+interface SubAgent {
+  name: string;
+  command: string;
+  inputs: Record<string, any>;
+  outputs: string[];
+}
+
+class Orchestrator {
+  async run(workflow: SubAgent[]) {
+    const results = {};
+
+    for (const agent of workflow) {
+      console.log(`Running ${agent.name}...`);
+
+      const result = await this.executeAgent(agent, results);
+      results[agent.name] = result;
+
+      // Check if we should continue
+      if (result.error) {
+        await this.handleError(agent, result.error);
+      }
+    }
+
+    return results;
+  }
+
+  private async executeAgent(agent: SubAgent, context: any) {
+    // Run the sub-agent
+    return await claude.run(agent.command, {
+      inputs: { ...agent.inputs, ...context },
+      timeout: 300000 // 5 minutes
+    });
+  }
+}
+
+// Usage
+const workflow = [
+  {
+    name: 'analyzer',
+    command: '/analyze-requirements',
+    inputs: { spec: 'user-story.md' },
+    outputs: ['requirements.json']
+  },
+  {
+    name: 'designer',
+    command: '/design-architecture',
+    inputs: { deps: ['analyzer.requirements.json'] },
+    outputs: ['design.md']
+  },
+  {
+    name: 'implementer',
+    command: '/implement-feature',
+    inputs: { deps: ['designer.design.md'] },
+    outputs: ['code/']
+  },
+  {
+    name: 'reviewer',
+    command: '/review-implementation',
+    inputs: { deps: ['implementer.code/'] },
+    outputs: ['review.md']
+  }
+];
+
+await new Orchestrator().run(workflow);
+```
+
+## Error Handling and Recovery
+
+Production agents must handle failure gracefully:
+
+### Retry Logic
+
+```typescript
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries = 3,
+  backoff = 1000
+): Promise<T> {
+  let lastError;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      console.warn(`Attempt ${i + 1} failed, retrying...`);
+      await sleep(backoff * Math.pow(2, i));
+    }
+  }
+
+  throw lastError;
+}
+```
+
+### Circuit Breaker
+
+```typescript
+class CircuitBreaker {
+  private failures = 0;
+  private lastFailureTime?: Date;
+  private readonly threshold = 5;
+  private readonly timeout = 60000; // 1 minute
+
+  async execute<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.isOpen()) {
+      throw new Error('Circuit breaker is open');
+    }
+
+    try {
+      const result = await operation();
+      this.onSuccess();
+      return result;
+    } catch (error) {
+      this.onFailure();
+      throw error;
+    }
+  }
+
+  private isOpen(): boolean {
+    if (this.failures < this.threshold) return false;
+    if (!this.lastFailureTime) return false;
+
+    const timeSinceLastFailure = Date.now() - this.lastFailureTime.getTime();
+    return timeSinceLastFailure < this.timeout;
+  }
+
+  private onSuccess() {
+    this.failures = 0;
+  }
+
+  private onFailure() {
+    this.failures++;
+    this.lastFailureTime = new Date();
+  }
+}
+```
+
+### State Recovery
+
+```typescript
+class ResumableAgent {
+  private stateFile = '.claude/agents/state.json';
+
+  async saveState(state: any) {
+    await fs.writeFile(this.stateFile, JSON.stringify(state, null, 2));
+  }
+
+  async loadState(): Promise<any> {
+    try {
+      const data = await fs.readFile(this.stateFile, 'utf-8');
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+
+  async resume() {
+    const state = await this.loadState();
+
+    if (state) {
+      console.log(`Resuming from ${state.currentStep}`);
+      return this.executeFromStep(state);
+    }
+
+    return this.executeFromStart();
+  }
+}
+```
+
+## Testing and Debugging Agents
+
+### Unit Testing Agent Logic
+
+```typescript
+// __tests__/file-organizer.test.ts
+describe('FileOrganizerAgent', () => {
+  let agent: FileOrganizerAgent;
+  let mockFs: MockFilesystem;
+
+  beforeEach(() => {
+    mockFs = new MockFilesystem();
+    agent = new FileOrganizerAgent(mockFs);
+  });
+
+  test('organizes images correctly', async () => {
+    mockFs.addFile('~/Downloads/photo.jpg');
+
+    await agent.execute();
+
+    expect(mockFs.exists('~/Downloads/Images/photo.jpg')).toBe(true);
+  });
+
+  test('handles naming conflicts', async () => {
+    mockFs.addFile('~/Downloads/photo.jpg');
+    mockFs.addFile('~/Downloads/Images/photo.jpg');
+
+    await agent.execute();
+
+    expect(mockFs.exists('~/Downloads/Images/photo-1.jpg')).toBe(true);
+  });
+
+  test('skips locked files', async () => {
+    mockFs.addFile('~/Downloads/locked.jpg', { locked: true });
+
+    await agent.execute();
+
+    expect(mockFs.exists('~/Downloads/locked.jpg')).toBe(true);
+    expect(agent.logs).toContain('Skipping locked file: locked.jpg');
+  });
+});
+```
+
+### Debugging Tips
+
+1. **Verbose Logging**: Always log agent decisions
+```typescript
+console.log(`[Agent:${this.name}] Decided to ${action} because ${reason}`);
+```
+
+2. **State Inspection**: Pause and inspect
+```typescript
+if (process.env.DEBUG_AGENT) {
+  await this.promptUser('Continue?');
+}
+```
+
+3. **Replay Mode**: Record and replay agent sessions
+```typescript
+// Record
+const session = new AgentRecorder();
+session.record(agent);
+
+// Replay
+const recording = await loadRecording('session-123.json');
+recording.replay();
+```
+
+## Production Deployment Patterns
+
+### Pattern 1: GitHub Actions Integration
+
+```yaml
+# .github/workflows/agent-review.yml
+name: AI Code Review
+on: [pull_request]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run Claude Code Review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude /code-review --pr ${{ github.event.pull_request.number }}
+```
+
+### Pattern 2: Scheduled Agents
+
+```yaml
+# .github/workflows/nightly-cleanup.yml
+name: Nightly Cleanup
+on:
+  schedule:
+    - cron: '0 2 * * *' # 2 AM daily
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Cleanup Agent
+        run: |
+          claude /cleanup-logs --older-than 30
+          claude /organize-downloads
+          claude /update-dependencies --dry-run
+```
+
+### Pattern 3: Event-Driven Agents
+
+```typescript
+// webhook-handler.ts
+import { Webhook } from '@octokit/webhooks';
+
+const webhooks = new Webhook({ secret: process.env.WEBHOOK_SECRET });
+
+webhooks.on('pull_request.opened', async ({ payload }) => {
+  // Trigger review agent
+  await claude.run('/code-review', {
+    pr: payload.pull_request.number
+  });
+});
+
+webhooks.on('issue.opened', async ({ payload }) => {
+  // Trigger triage agent
+  await claude.run('/triage-issue', {
+    issue: payload.issue.number
+  });
+});
+```
+
+## Performance Optimization
+
+### Cost Management
+
+Agents can be expensive. Optimize costs:
+
+```typescript
+class CostAwareAgent {
+  private tokenBudget = 100000; // ~$3 per run
+  private tokensUsed = 0;
+
+  async trackUsage(response: any) {
+    this.tokensUsed += response.usage.total_tokens;
+
+    if (this.tokensUsed > this.tokenBudget * 0.8) {
+      console.warn('Approaching token budget');
+    }
+
+    if (this.tokensUsed > this.tokenBudget) {
+      throw new Error('Token budget exceeded');
+    }
+  }
+
+  async smartChunking(files: string[]): Promise<string[][]> {
+    // Group related files to minimize context switching
+    const chunks = [];
+    // ... chunking logic
+    return chunks;
+  }
+}
+```
+
+### Caching Strategies
+
+```typescript
+class AgentCache {
+  private cache = new Map<string, any>();
+
+  async getOrCompute<T>(
+    key: string,
+    compute: () => Promise<T>,
+    ttl = 3600000 // 1 hour
+  ): Promise<T> {
+    if (this.cache.has(key)) {
+      return this.cache.get(key);
+    }
+
+    const result = await compute();
+    this.cache.set(key, result);
+
+    setTimeout(() => this.cache.delete(key), ttl);
+
+    return result;
+  }
+
+  // Cache embeddings for semantic search
+  async getEmbedding(text: string) {
+    return this.getOrCompute(
+      `embedding:${hash(text)}`,
+      () => openai.embeddings.create({ input: text })
+    );
+  }
+}
+```
+
+## Conclusion and Resources
+
+Claude Code represents a shift from AI-assisted coding to AI-agent collaboration. The agents you build can:
+
+- **Automate repetitive tasks** (organization, cleanup, documentation)
+- **Amplify your expertise** (code review, architecture guidance)
+- **Handle complex workflows** (research, multi-step processes)
+
+### Key Takeaways
+
+1. **Start simple**: Build single-purpose agents first
+2. **Design for failure**: Implement retry, circuit breaker, and recovery patterns
+3. **Test thoroughly**: Agents need unit tests just like any other code
+4. **Monitor costs**: AI agents can be expensive; optimize aggressively
+5. **Iterate**: Start with manual triggers, then move to automation
+
+### Next Steps
+
+1. Create your first `.claude/commands/` file
+2. Build one agent from this guide
+3. Add error handling and retry logic
+4. Deploy via GitHub Actions
+5. Measure and optimize
+
+### Further Reading
+
+- [Claude Code Documentation](https://docs.anthropic.com/)
+- [Building AI Agents](https://blog.ioodu.com/tech/building-ai-agents) (my earlier post)
+- [Anthropic's Agent Patterns](https://www.anthropic.com/research)
+- [My AI Engineering Portfolio Guide](/essays/ai-engineering-portfolio)
+
+---
+
+**Ready to build your first agent?** Start with the file organizer—it's simple, useful, and will teach you the fundamentals. Then move on to more complex patterns.
+
+*What agents are you planning to build? Share your ideas—I'd love to see what you create.*
