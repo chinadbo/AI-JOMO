@@ -1,0 +1,1261 @@
+---
+title: "Building Production-Ready MCP Servers: A Developer's Guide"
+description: "A comprehensive guide to building, deploying, and scaling Model Context Protocol servers. Learn authentication, rate limiting, error handling, and production patterns."
+pubDate: 2026-03-17
+tags: ["mcp", "model-context-protocol", "ai-integration", "typescript", "claude", "api-development"]
+author: "Ioodu"
+readingTime: 18
+---
+
+## Introduction
+
+The Model Context Protocol (MCP) has emerged as the universal standard for connecting AI assistants to external tools, data sources, and services. As we navigate through 2026, MCP has become the backbone of agentic AI workflows, enabling seamless integration between large language models and the broader software ecosystem. What started as an experimental protocol has evolved into a production-ready specification supported by major AI platforms, with Claude leading the charge in adoption and innovation.
+
+MCP matters now more than ever because it solves a fundamental problem in AI integration: how do we give intelligent agents secure, structured access to real-world capabilities without compromising on safety or flexibility? Whether you are building internal developer tools, customer-facing AI features, or complex multi-agent orchestrations, understanding how to build production-ready MCP servers is becoming an essential skill for modern software engineers.
+
+This guide takes you from first principles to production deployment. We will cover everything from protocol fundamentals to advanced patterns like authentication, rate limiting, and observability. By the end, you will have the knowledge to build robust MCP servers that can handle real-world traffic, scale horizontally, and integrate seamlessly with Claude and other MCP-compatible clients.
+
+## MCP Protocol Overview
+
+At its core, MCP is a JSON-RPC based protocol that standardizes how AI assistants discover and invoke capabilities exposed by external servers. Think of it as HTTP for AI tools: a common language that eliminates the need for custom integrations between every AI model and every external service.
+
+### Core Concepts
+
+The protocol defines four primary primitives that servers can expose:
+
+**Tools** are the most common primitive, representing discrete actions that an AI can invoke. Each tool has a name, description, and input schema defined using JSON Schema. When Claude decides a tool call would help answer a user's question, it constructs arguments matching the schema and sends them to your server for execution.
+
+**Resources** provide a way to expose structured data that the AI can reference. Unlike tools which are invoked for their side effects, resources are fetched for their content. This distinction matters for caching, permissions, and how the AI reasons about when to use each capability.
+
+**Prompts** allow servers to expose pre-defined templates that help users accomplish specific tasks. These can include dynamic variables and provide a way to standardize common interactions with your server's capabilities.
+
+**Sampling** is the inverse relationship: instead of the AI calling your server, sampling allows your server to request the AI generate text, creating powerful bidirectional workflows.
+
+### Protocol Flow
+
+```
+┌─────────────┐                    ┌─────────────┐
+│   Client    │ ◄────────────────► │ MCP Server  │
+│  (Claude)   │    JSON-RPC over   │  (Your API) │
+│             │       Stdio/SSE    │             │
+└─────────────┘                    └─────────────┘
+       │                                   │
+       │  1. initialize                    │
+       │  2. tools/list                    │
+       │  3. tools/call                    │
+       │  4. resources/read                │
+       │                                   │
+```
+
+The connection begins with an initialization handshake where capabilities are exchanged. The client discovers available tools, resources, and prompts through introspection endpoints. During conversation, the AI may request tool calls, which the client routes to your server and returns results.
+
+Understanding this flow is crucial for production systems. Every request must complete within a timeout window, responses must follow the exact schema expected by the client, and your server must handle concurrent requests from multiple AI conversations gracefully.
+
+## Development Environment Setup
+
+Before building your first MCP server, you need to set up a proper development environment. MCP servers are typically built with TypeScript for type safety and better developer experience, though the protocol itself is language-agnostic.
+
+### Prerequisites
+
+You will need Node.js 18 or later installed on your system. MCP servers can communicate over stdio for local development or HTTP/SSE for remote deployments. For this guide, we will focus on TypeScript and the official SDK.
+
+### Project Structure
+
+Create a new project directory and initialize it:
+
+```bash
+mkdir mcp-server-guide
+cd mcp-server-guide
+npm init -y
+```
+
+Install the required dependencies:
+
+```bash
+npm install @modelcontextprotocol/sdk zod
+npm install -D typescript @types/node vitest
+```
+
+Your `package.json` should include these scripts:
+
+```json
+{
+  "name": "mcp-weather-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
+```
+
+Create a `tsconfig.json` for TypeScript configuration:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*"]
+}
+```
+
+Create the source directory structure:
+
+```bash
+mkdir -p src/{tools,resources,utils}
+```
+
+## Building Your First Tool
+
+Let us build a complete weather tool that demonstrates MCP fundamentals. This example shows server initialization, tool definition with Zod schema validation, handler implementation, and integration with Claude.
+
+### Server Initialization
+
+Create `src/index.ts` with the server setup:
+
+```typescript
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
+
+// Define the tool input schema using Zod
+const WeatherInputSchema = z.object({
+  location: z.string().describe("City name or coordinates"),
+  units: z.enum(["celsius", "fahrenheit"]).default("celsius"),
+});
+
+type WeatherInput = z.infer<typeof WeatherInputSchema>;
+
+// Create the MCP server
+const server = new Server(
+  {
+    name: "weather-server",
+    version: "1.0.0",
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+
+// Register tool list handler
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return {
+    tools: [
+      {
+        name: "get_weather",
+        description: "Get current weather conditions for a location",
+        inputSchema: {
+          type: "object",
+          properties: {
+            location: {
+              type: "string",
+              description: "City name or coordinates (e.g., 'London' or '51.5074,-0.1278')",
+            },
+            units: {
+              type: "string",
+              enum: ["celsius", "fahrenheit"],
+              description: "Temperature units",
+              default: "celsius",
+            },
+          },
+          required: ["location"],
+        },
+      },
+    ],
+  };
+});
+
+// Register tool call handler
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  if (request.params.name === "get_weather") {
+    // Validate input using Zod
+    const result = WeatherInputSchema.safeParse(request.params.arguments);
+
+    if (!result.success) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Invalid input: ${result.error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const { location, units } = result.data;
+
+    try {
+      // In production, call a real weather API
+      const weather = await fetchWeather(location, units);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Weather in ${location}: ${weather.temperature}°${units === "celsius" ? "C" : "F"}, ${weather.conditions}. Humidity: ${weather.humidity}%.`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to fetch weather: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  throw new Error(`Unknown tool: ${request.params.name}`);
+});
+
+// Mock weather function
+async function fetchWeather(location: string, units: string) {
+  // Replace with actual API call
+  return {
+    temperature: units === "celsius" ? 22 : 72,
+    conditions: "Partly cloudy",
+    humidity: 65,
+  };
+}
+
+// Start the server
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("Weather MCP Server running on stdio");
+}
+
+main().catch(console.error);
+```
+
+### Running with Claude
+
+To test your server with Claude, add it to your Claude configuration. Create or edit `~/.config/claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "weather": {
+      "command": "node",
+      "args": ["/path/to/mcp-server-guide/dist/index.js"]
+    }
+  }
+}
+```
+
+Build and test your server:
+
+```bash
+npm run build
+```
+
+Now when you ask Claude about the weather, it will invoke your tool automatically.
+
+## Authentication & Security
+
+Production MCP servers must implement proper authentication. The protocol supports passing credentials through the initialization phase, and you should validate these before processing any requests.
+
+### Bearer Token Authentication
+
+Here is a middleware pattern for implementing Bearer token auth:
+
+```typescript
+import { RequestHandler } from "@modelcontextprotocol/sdk/server/index.js";
+
+interface AuthContext {
+  token: string;
+  userId?: string;
+}
+
+// Middleware to extract and validate auth token
+function withAuth<T>(handler: (request: T, auth: AuthContext) => Promise<any>): RequestHandler<T> {
+  return async (request: T) => {
+    const meta = (request as any)._meta;
+    const authHeader = meta?.authToken;
+
+    if (!authHeader) {
+      throw new Error("Missing authentication token");
+    }
+
+    // Validate token (implement your validation logic)
+    const token = authHeader.replace("Bearer ", "");
+    const validated = await validateToken(token);
+
+    if (!validated.valid) {
+      throw new Error("Invalid authentication token");
+    }
+
+    return handler(request, { token, userId: validated.userId });
+  };
+}
+
+async function validateToken(token: string): Promise<{ valid: boolean; userId?: string }> {
+  // Implement your token validation
+  // Could use JWT, API keys, or custom tokens
+  if (token === process.env.API_TOKEN) {
+    return { valid: true, userId: "system" };
+  }
+  return { valid: false };
+}
+
+// Apply auth to handlers
+server.setRequestHandler(
+  CallToolRequestSchema,
+  withAuth(async (request, auth) => {
+    console.log(`Authenticated request from user: ${auth.userId}`);
+    // ... handle tool call
+  })
+);
+```
+
+### API Key Validation
+
+For servers calling external APIs, implement secure key management:
+
+```typescript
+class SecureKeyManager {
+  private keys: Map<string, string> = new Map();
+
+  setKey(service: string, key: string) {
+    // Encrypt at rest in production
+    this.keys.set(service, key);
+  }
+
+  getKey(service: string): string | undefined {
+    return this.keys.get(service);
+  }
+
+  // Rotate keys without downtime
+  async rotateKey(service: string, newKey: string): Promise<void> {
+    const oldKey = this.keys.get(service);
+    this.keys.set(service, newKey);
+
+    // Grace period: keep old key valid briefly
+    setTimeout(() => {
+      if (this.keys.get(service) === newKey) {
+        console.log(`Key rotation complete for ${service}`);
+      }
+    }, 300000); // 5 minute grace period
+  }
+}
+
+export const keyManager = new SecureKeyManager();
+```
+
+## Rate Limiting
+
+Production servers need rate limiting to prevent abuse and ensure fair usage. Implement token bucket rate limiting with Redis for distributed deployments.
+
+### Token Bucket Implementation
+
+```typescript
+import { createClient, RedisClientType } from "redis";
+
+interface RateLimitConfig {
+  tokensPerMinute: number;
+  burstSize: number;
+}
+
+class RateLimiter {
+  private redis: RedisClientType;
+  private config: RateLimitConfig;
+
+  constructor(redis: RedisClientType, config: RateLimitConfig) {
+    this.redis = redis;
+    this.config = config;
+  }
+
+  async checkLimit(key: string): Promise<{ allowed: boolean; remaining: number }> {
+    const now = Date.now();
+    const windowKey = `ratelimit:${key}`;
+
+    // Lua script for atomic token bucket
+    const script = `
+      local key = KEYS[1]
+      local now = tonumber(ARGV[1])
+      local tokensPerMinute = tonumber(ARGV[2])
+      local burstSize = tonumber(ARGV[3])
+      local window = 60000 -- 1 minute in ms
+
+      local bucket = redis.call('hmget', key, 'tokens', 'last_update')
+      local tokens = tonumber(bucket[1]) or burstSize
+      local lastUpdate = tonumber(bucket[2]) or now
+
+      -- Add tokens based on time passed
+      local elapsed = now - lastUpdate
+      local newTokens = math.min(burstSize, tokens + (elapsed / window) * tokensPerMinute)
+
+      if newTokens >= 1 then
+        newTokens = newTokens - 1
+        redis.call('hmset', key, 'tokens', newTokens, 'last_update', now)
+        redis.call('pexpire', key, window * 2)
+        return {1, math.floor(newTokens)}
+      else
+        redis.call('hmset', key, 'tokens', newTokens, 'last_update', now)
+        redis.call('pexpire', key, window * 2)
+        return {0, 0}
+      end
+    `;
+
+    const result = await this.redis.eval(
+      script,
+      1,
+      windowKey,
+      now,
+      this.config.tokensPerMinute,
+      this.config.burstSize
+    );
+
+    return {
+      allowed: result[0] === 1,
+      remaining: result[1] as number,
+    };
+  }
+}
+
+// Usage in tool handler
+const rateLimiter = new RateLimiter(redisClient, {
+  tokensPerMinute: 60,
+  burstSize: 10,
+});
+
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const limit = await rateLimiter.checkLimit(request.params.name);
+
+  if (!limit.allowed) {
+    return {
+      content: [{ type: "text", text: "Rate limit exceeded. Please try again later." }],
+      isError: true,
+    };
+  }
+
+  // ... process request
+});
+```
+
+## Error Handling
+
+Robust error handling distinguishes production servers from prototypes. MCP defines structured error responses that help clients understand what went wrong.
+
+### Structured Error Handling
+
+```typescript
+import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+
+// Custom error classes for different failure modes
+class ValidationError extends McpError {
+  constructor(message: string) {
+    super(ErrorCode.InvalidParams, message);
+  }
+}
+
+class ExternalAPIError extends McpError {
+  constructor(message: string, public readonly statusCode?: number) {
+    super(ErrorCode.InternalError, message);
+  }
+}
+
+class RateLimitError extends McpError {
+  constructor(message: string) {
+    super(ErrorCode.InternalError, message);
+  }
+}
+
+// Error handler wrapper
+async function withErrorHandling<T>(
+  operation: () => Promise<T>,
+  context: { toolName: string; requestId: string }
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    console.error(`Error in ${context.toolName} [${context.requestId}]:`, error);
+
+    if (error instanceof McpError) {
+      throw error;
+    }
+
+    if (error instanceof z.ZodError) {
+      throw new ValidationError(error.message);
+    }
+
+    // Wrap unknown errors
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Unexpected error: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+}
+
+// Retry logic with exponential backoff
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+
+      // Don't retry validation errors
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+
+      const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+      console.log(`Retry ${attempt + 1}/${maxRetries} after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+```
+
+### Logging
+
+Implement structured logging for observability:
+
+```typescript
+import { createLogger, format, transports } from "winston";
+
+const logger = createLogger({
+  level: process.env.LOG_LEVEL || "info",
+  format: format.combine(
+    format.timestamp(),
+    format.errors({ stack: true }),
+    format.json()
+  ),
+  defaultMeta: { service: "mcp-server" },
+  transports: [
+    new transports.Console(),
+    new transports.File({ filename: "error.log", level: "error" }),
+    new transports.File({ filename: "combined.log" }),
+  ],
+});
+
+// Usage
+logger.info("Tool executed", {
+  tool: "get_weather",
+  duration: 145,
+  success: true,
+});
+```
+
+## Testing
+
+Comprehensive testing ensures your MCP server works reliably. Use Vitest for unit testing and implement integration tests that verify the full protocol flow.
+
+### Unit Tests with Vitest
+
+Create `src/tools/weather.test.ts`:
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { WeatherInputSchema } from "./weather.js";
+
+describe("WeatherInputSchema", () => {
+  it("should validate valid input", () => {
+    const input = { location: "London", units: "celsius" };
+    const result = WeatherInputSchema.safeParse(input);
+    expect(result.success).toBe(true);
+  });
+
+  it("should default units to celsius", () => {
+    const input = { location: "Paris" };
+    const result = WeatherInputSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.units).toBe("celsius");
+    }
+  });
+
+  it("should reject invalid units", () => {
+    const input = { location: "Tokyo", units: "kelvin" };
+    const result = WeatherInputSchema.safeParse(input);
+    expect(result.success).toBe(false);
+  });
+
+  it("should require location", () => {
+    const input = { units: "fahrenheit" };
+    const result = WeatherInputSchema.safeParse(input);
+    expect(result.success).toBe(false);
+  });
+});
+```
+
+### Integration Testing
+
+Create `src/__tests__/server.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { initializeServer } from "../server.js";
+
+describe("MCP Server Integration", () => {
+  let client: Client;
+  let server: Server;
+  let clientTransport: InMemoryTransport;
+  let serverTransport: InMemoryTransport;
+
+  beforeAll(async () => {
+    [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+    server = initializeServer();
+    await server.connect(serverTransport);
+
+    client = new Client({ name: "test-client", version: "1.0.0" });
+    await client.connect(clientTransport);
+  });
+
+  afterAll(async () => {
+    await client.close();
+    await server.close();
+  });
+
+  it("should list available tools", async () => {
+    const tools = await client.listTools();
+    expect(tools.tools).toHaveLength(1);
+    expect(tools.tools[0].name).toBe("get_weather");
+  });
+
+  it("should call weather tool successfully", async () => {
+    const result = await client.callTool("get_weather", {
+      location: "London",
+      units: "celsius",
+    });
+
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].text).toContain("London");
+  });
+
+  it("should handle invalid input gracefully", async () => {
+    const result = await client.callTool("get_weather", {
+      location: "",
+    });
+
+    expect(result.isError).toBe(true);
+  });
+});
+```
+
+Add Vitest configuration in `vitest.config.ts`:
+
+```typescript
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "node",
+  },
+});
+```
+
+## Deployment
+
+Deploying MCP servers to production requires careful consideration of infrastructure, environment management, and security.
+
+### Docker Containerization
+
+Create a `Dockerfile`:
+
+```dockerfile
+# Build stage
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --only=production
+COPY --from=builder /app/dist ./dist
+USER node
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+```
+
+Add `.dockerignore`:
+
+```
+node_modules
+npm-debug.log
+.env
+.env.local
+dist
+coverage
+.git
+```
+
+### Fly.io Deployment
+
+Create `fly.toml`:
+
+```toml
+app = "mcp-weather-server"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+```
+
+Deploy:
+
+```bash
+fly deploy
+fly secrets set API_KEY=your_key_here
+fly secrets set REDIS_URL=your_redis_url
+```
+
+### Environment Variables
+
+Use a structured approach for environment configuration:
+
+```typescript
+import { z } from "zod";
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  PORT: z.string().default("3000"),
+  API_KEY: z.string(),
+  REDIS_URL: z.string().optional(),
+  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  RATE_LIMIT_ENABLED: z.string().default("true"),
+  RATE_LIMIT_RPM: z.string().default("60"),
+});
+
+export const env = envSchema.parse(process.env);
+```
+
+## Real-World Example: GitHub Integration
+
+Let us build a complete GitHub integration server that demonstrates production patterns with multiple tools, proper error handling, and authentication.
+
+### Complete Implementation
+
+Create `src/github-server.ts`:
+
+```typescript
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
+
+// Schemas for GitHub tools
+const ListReposSchema = z.object({
+  username: z.string().describe("GitHub username"),
+  type: z.enum(["all", "owner", "member"]).default("owner"),
+  per_page: z.number().min(1).max(100).default(30),
+});
+
+const GetFileSchema = z.object({
+  owner: z.string().describe("Repository owner"),
+  repo: z.string().describe("Repository name"),
+  path: z.string().describe("File path in repository"),
+  ref: z.string().optional().describe("Git reference (branch, tag, or SHA)"),
+});
+
+const CreateIssueSchema = z.object({
+  owner: z.string(),
+  repo: z.string(),
+  title: z.string().min(1).max(256),
+  body: z.string().optional(),
+  labels: z.array(z.string()).optional(),
+  assignees: z.array(z.string()).optional(),
+});
+
+class GitHubClient {
+  private token: string;
+  private baseUrl = "https://api.github.com";
+
+  constructor(token: string) {
+    this.token = token;
+  }
+
+  private async fetch(path: string, options: RequestInit = {}) {
+    const url = `${this.baseUrl}${path}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Accept: "application/vnd.github.v3+json",
+        Authorization: `Bearer ${this.token}`,
+        "User-Agent": "mcp-github-server",
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`GitHub API error: ${response.status} - ${error}`);
+    }
+
+    return response.json();
+  }
+
+  async listRepositories(username: string, type: string, perPage: number) {
+    return this.fetch(`/users/${username}/repos?type=${type}&per_page=${perPage}`);
+  }
+
+  async getFileContents(owner: string, repo: string, path: string, ref?: string) {
+    const refParam = ref ? `?ref=${ref}` : "";
+    return this.fetch(`/repos/${owner}/${repo}/contents/${path}${refParam}`);
+  }
+
+  async createIssue(owner: string, repo: string, issue: any) {
+    return this.fetch(`/repos/${owner}/${repo}/issues`, {
+      method: "POST",
+      body: JSON.stringify(issue),
+    });
+  }
+}
+
+function createServer(githubToken: string) {
+  const github = new GitHubClient(githubToken);
+
+  const server = new Server(
+    { name: "github-server", version: "1.0.0" },
+    { capabilities: { tools: {} } }
+  );
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [
+      {
+        name: "list_repositories",
+        description: "List GitHub repositories for a user",
+        inputSchema: {
+          type: "object",
+          properties: {
+            username: { type: "string", description: "GitHub username" },
+            type: { type: "string", enum: ["all", "owner", "member"], default: "owner" },
+            per_page: { type: "number", minimum: 1, maximum: 100, default: 30 },
+          },
+          required: ["username"],
+        },
+      },
+      {
+        name: "get_file_contents",
+        description: "Get contents of a file from a GitHub repository",
+        inputSchema: {
+          type: "object",
+          properties: {
+            owner: { type: "string", description: "Repository owner" },
+            repo: { type: "string", description: "Repository name" },
+            path: { type: "string", description: "File path" },
+            ref: { type: "string", description: "Git ref (branch/tag/SHA)" },
+          },
+          required: ["owner", "repo", "path"],
+        },
+      },
+      {
+        name: "create_issue",
+        description: "Create a new issue in a GitHub repository",
+        inputSchema: {
+          type: "object",
+          properties: {
+            owner: { type: "string" },
+            repo: { type: "string" },
+            title: { type: "string", minLength: 1, maxLength: 256 },
+            body: { type: "string" },
+            labels: { type: "array", items: { type: "string" } },
+            assignees: { type: "array", items: { type: "string" } },
+          },
+          required: ["owner", "repo", "title"],
+        },
+      },
+    ],
+  }));
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+
+    try {
+      switch (name) {
+        case "list_repositories": {
+          const input = ListReposSchema.parse(args);
+          const repos = await github.listRepositories(
+            input.username,
+            input.type,
+            input.per_page
+          );
+
+          const summary = repos.map((r: any) => ({
+            name: r.name,
+            description: r.description,
+            stars: r.stargazers_count,
+            language: r.language,
+            url: r.html_url,
+          }));
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Found ${summary.length} repositories:\n\n${summary
+                  .map((r: any) => `- **${r.name}**: ${r.description || "No description"} (${r.stars} stars)`)
+                  .join("\n")}`,
+              },
+            ],
+          };
+        }
+
+        case "get_file_contents": {
+          const input = GetFileSchema.parse(args);
+          const file = await github.getFileContents(
+            input.owner,
+            input.repo,
+            input.path,
+            input.ref
+          );
+
+          if (Array.isArray(file)) {
+            // Directory listing
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Directory contents:\n\n${file
+                    .map((f: any) => `- ${f.type === "dir" ? "📁" : "📄"} ${f.name}`)
+                    .join("\n")}`,
+                },
+              ],
+            };
+          }
+
+          // File content (base64 encoded)
+          const content = Buffer.from(file.content, "base64").toString("utf-8");
+          return {
+            content: [
+              {
+                type: "text",
+                text: `File: ${input.path}\n\n\`\`\`${file.name.split(".").pop()}\n${content}\n\`\`\``,
+              },
+            ],
+          };
+        }
+
+        case "create_issue": {
+          const input = CreateIssueSchema.parse(args);
+          const issue = await github.createIssue(input.owner, input.repo, {
+            title: input.title,
+            body: input.body,
+            labels: input.labels,
+            assignees: input.assignees,
+          });
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Issue created successfully!\n\nTitle: ${issue.title}\nNumber: #${issue.number}\nURL: ${issue.html_url}`,
+              },
+            ],
+          };
+        }
+
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
+    } catch (error) {
+      console.error(`Error executing ${name}:`, error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  });
+
+  return server;
+}
+
+// Start server
+async function main() {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    console.error("GITHUB_TOKEN environment variable required");
+    process.exit(1);
+  }
+
+  const server = createServer(token);
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("GitHub MCP Server running on stdio");
+}
+
+main().catch(console.error);
+```
+
+## Advanced Patterns
+
+Beyond basic tools, MCP supports resources, prompts, and sampling for sophisticated integrations.
+
+### Resources
+
+Resources expose dynamic data that the AI can reference:
+
+```typescript
+import { ReadResourceRequestSchema, ListResourcesRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+  resources: [
+    {
+      uri: "docs://api-reference",
+      name: "API Reference",
+      mimeType: "text/markdown",
+      description: "Complete API documentation",
+    },
+  ],
+}));
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const { uri } = request.params;
+
+  if (uri === "docs://api-reference") {
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: "text/markdown",
+          text: await loadDocumentation(),
+        },
+      ],
+    };
+  }
+
+  throw new Error(`Resource not found: ${uri}`);
+});
+```
+
+### Prompts
+
+Prompts provide pre-defined templates:
+
+```typescript
+import { ListPromptsRequestSchema, GetPromptRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+  prompts: [
+    {
+      name: "code-review",
+      description: "Review code for best practices",
+      arguments: [
+        {
+          name: "language",
+          description: "Programming language",
+          required: true,
+        },
+      ],
+    },
+  ],
+}));
+
+server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+
+  if (name === "code-review") {
+    return {
+      description: "Code Review Template",
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: `Please review this ${args?.language} code for:\n1. Security issues\n2. Performance optimization\n3. Best practices\n4. Maintainability`,
+          },
+        },
+      ],
+    };
+  }
+
+  throw new Error(`Prompt not found: ${name}`);
+});
+```
+
+### Sampling
+
+Sampling lets your server request AI generation:
+
+```typescript
+import { CreateMessageRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
+server.setRequestHandler(CreateMessageRequestSchema, async (request) => {
+  // This is invoked when your server needs the AI to generate content
+  // The client (Claude) handles the actual generation
+  return {
+    model: "claude-3-sonnet-20241022",
+    stopReason: "endTurn",
+    role: "assistant",
+    content: {
+      type: "text",
+      text: "Generated content here",
+    },
+  };
+});
+```
+
+## Monitoring & Observability
+
+Production servers need comprehensive observability to detect and diagnose issues.
+
+### Health Checks
+
+Implement health endpoints for load balancers:
+
+```typescript
+import express from "express";
+
+const app = express();
+
+app.get("/health", async (req, res) => {
+  const checks = {
+    github: await checkGitHubConnectivity(),
+    redis: await checkRedisConnection(),
+    memory: process.memoryUsage(),
+  };
+
+  const healthy = checks.github && checks.redis;
+
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? "healthy" : "unhealthy",
+    timestamp: new Date().toISOString(),
+    checks,
+  });
+});
+
+app.get("/metrics", (req, res) => {
+  // Export Prometheus metrics
+  res.format({
+    "text/plain": () => {
+      res.send(generatePrometheusMetrics());
+    },
+  });
+});
+```
+
+### Structured Logging
+
+Use correlation IDs for request tracing:
+
+```typescript
+import { AsyncLocalStorage } from "async_hooks";
+
+const asyncLocalStorage = new AsyncLocalStorage<{ requestId: string }>();
+
+export function getRequestId(): string {
+  return asyncLocalStorage.getStore()?.requestId || "unknown";
+}
+
+export function withRequestContext<T>(fn: () => Promise<T>): Promise<T> {
+  const requestId = generateRequestId();
+  return asyncLocalStorage.run({ requestId }, fn);
+}
+
+// Middleware to wrap all handlers
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  return withRequestContext(async () => {
+    logger.info("Tool invoked", {
+      requestId: getRequestId(),
+      tool: request.params.name,
+    });
+
+    // ... handle request
+  });
+});
+```
+
+## Common Pitfalls
+
+Avoid these common mistakes when building MCP servers:
+
+**Blocking the event loop**: MCP servers must handle requests concurrently. Never perform synchronous I/O or CPU-intensive operations without yielding. Use `setImmediate` or worker threads for heavy computation.
+
+**Ignoring timeouts**: Tool calls have implicit timeouts. Design your handlers to complete quickly or implement cancellation tokens for long-running operations.
+
+**Leaking secrets**: Never include API keys or tokens in error messages or logs. Sanitize all output before returning to the client.
+
+**Missing input validation**: Always validate inputs with Zod or similar libraries. The AI may generate unexpected argument structures.
+
+**Not handling partial failures**: When a tool performs multiple operations, handle partial failures gracefully. Return what succeeded along with error details.
+
+**Forgetting rate limits**: External APIs have limits. Cache responses and implement circuit breakers to avoid overwhelming downstream services.
+
+**Hardcoding configuration**: Use environment variables for all configuration. Never commit secrets to version control.
+
+## Conclusion
+
+Building production-ready MCP servers requires attention to security, reliability, and observability. Start with simple tools, add authentication and rate limiting, then layer in comprehensive error handling and monitoring.
+
+The patterns in this guide apply whether you are building internal developer tools or public-facing services. As MCP adoption grows across the AI ecosystem, mastering these skills positions you to build powerful integrations that extend AI capabilities to any domain.
+
+Your next steps should include exploring the [Claude Code agent workflows](/tech/claude-code-agent-workflows) and learning about [building AI agents](/tech/building-ai-agents) to create complete AI-powered applications. The Model Context Protocol is the foundation; now go build something remarkable on top of it.
+
+---
+
+*Have questions about building MCP servers? Join the conversation in the [Claude Developer Community](https://github.com/anthropics/anthropic-cookbook) or explore the [MCP Specification](https://modelcontextprotocol.io) for deep protocol details.*
