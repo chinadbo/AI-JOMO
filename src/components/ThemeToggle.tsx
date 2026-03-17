@@ -20,6 +20,30 @@ export default function ThemeToggle() {
     setMounted(true);
   }, []);
 
+  // Sync state with DOM after Astro page transitions
+  useEffect(() => {
+    const syncTheme = () => {
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      setIsDark(isDarkMode);
+    };
+
+    // Listen for Astro's view transition completion
+    document.addEventListener('astro:after-swap', syncTheme);
+
+    // Also listen for storage changes (in case theme changes in another tab)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'theme') {
+        syncTheme();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      document.removeEventListener('astro:after-swap', syncTheme);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
   // Toggle theme
   const toggleTheme = () => {
     const newIsDark = !isDark;
