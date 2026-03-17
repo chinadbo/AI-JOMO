@@ -27,8 +27,14 @@ export default function ThemeToggle() {
       setIsDark(isDarkMode);
     };
 
-    // Listen for Astro's view transition completion
+    // Sync immediately (in case we missed the initial event)
+    syncTheme();
+
+    // Listen for Astro's view transition events
+    // astro:after-swap fires after DOM swap but before scripts run
     document.addEventListener('astro:after-swap', syncTheme);
+    // astro:page-load fires after the page is fully loaded
+    document.addEventListener('astro:page-load', syncTheme);
 
     // Also listen for storage changes (in case theme changes in another tab)
     const handleStorage = (e: StorageEvent) => {
@@ -40,6 +46,7 @@ export default function ThemeToggle() {
 
     return () => {
       document.removeEventListener('astro:after-swap', syncTheme);
+      document.removeEventListener('astro:page-load', syncTheme);
       window.removeEventListener('storage', handleStorage);
     };
   }, []);
