@@ -6,17 +6,18 @@ import { Moon, Sun } from 'lucide-react';
  * Implements dark/light theme toggle with localStorage persistence
  */
 export default function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
+  // Initialize state from DOM class set by inline script in BaseLayout
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
   const [mounted, setMounted] = useState(false);
 
-  // Initialize: read localStorage or system preference
+  // Mark as mounted after hydration
   useEffect(() => {
     setMounted(true);
-    const stored = localStorage.getItem('theme');
-    if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    }
   }, []);
 
   // Toggle theme
