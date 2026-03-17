@@ -157,7 +157,7 @@ const navLinks = [
           </button>
 
           <!-- Theme Toggle -->
-          <ThemeToggle client:load transition:persist />
+          <ThemeToggle client:load />
         </div>
       </nav>
     </header>
@@ -189,7 +189,7 @@ const navLinks = [
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-slate-200 dark:border-slate-800 mt-20" transition:persist>
+    <footer class="border-t border-slate-200 dark:border-slate-800 mt-20">
       <div class="max-w-6xl mx-auto px-4 py-8">
         <div class="flex flex-col md:flex-row items-center justify-between gap-4">
           <!-- Copyright -->
@@ -219,7 +219,7 @@ const navLinks = [
     </footer>
 
     <!-- Command Palette -->
-    <CommandPalette client:load transition:persist items={searchItems} />
+    <CommandPalette client:load items={searchItems} />
 
     <!-- Command Palette Trigger Script -->
     <script>
