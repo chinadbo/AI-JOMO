@@ -1,0 +1,965 @@
+---
+title: "Web Application Observability: Beyond Logs and Metrics in 2026"
+description: "A practical guide to observability for production web applications. Covers OpenTelemetry, distributed tracing, cost optimization, and the modern observability stack."
+pubDate: 2026-03-17
+tags: ["observability", "monitoring", "opentelemetry", "distributed-tracing", "devops", "sre", "monitoring"]
+author: "Ioodu"
+readingTime: 20
+---
+
+# Web Application Observability: Beyond Logs and Metrics in 2026
+
+You can't fix what you can't see. And in 2026, with microservices, serverless, and AI-powered features, seeing what's happening in your application has never been more complex—or more critical.
+
+I've debugged production issues at 3 AM that could have been solved in 5 minutes with proper observability. I've also seen observability bills that cost more than the infrastructure itself. This guide covers how to build observable systems without breaking the bank.
+
+## The Three Pillars (Revisited)
+
+The classic three pillars of observability are:
+1. **Metrics** (the what)
+2. **Logs** (the details)
+3. **Traces** (the journey)
+
+But in 2026, we need to add a fourth:
+4. **Profiles** (the why)
+
+### Metrics: The What
+
+Metrics are time-series data—numbers that change over time.
+
+```typescript
+// Good metrics to track
+const metrics = {
+  // Application metrics
+  'http.requests': { count: 150, status: '200', path: '/api/users' },
+  'http.latency': { p50: 45, p95: 120, p99: 250, unit: 'ms' },
+  'http.errors': { count: 5, type: '500' },
+
+  // Business metrics
+  'users.active': 5420,
+  'orders.created': 150,
+  'revenue.total': 12500.50,
+
+  // Resource metrics
+  'cpu.usage': 45.2,
+  'memory.usage': 2.5, // GB
+  'disk.io': 150, // MB/s
+};
+```
+
+**Key Insight**: Metrics are cheap. Collect lots of them.
+
+### Logs: The Details
+
+Logs provide context that metrics can't.
+
+```typescript
+// Bad log (just a string)
+console.log('User logged in');
+
+// Good log (structured)
+logger.info({
+  event: 'user.login',
+  userId: 'user_123',
+  method: 'oauth.google',
+  ip: '192.168.1.1',
+  userAgent: 'Mozilla/5.0...',
+  duration: 250, // ms
+  timestamp: '2026-03-17T10:00:00Z'
+});
+```
+
+**Key Insight**: Structured logs are queryable logs.
+
+### Traces: The Journey
+
+Traces show how requests flow through your system.
+
+```
+Trace: request_123
+├── Span: frontend (50ms)
+│   └── Span: api-gateway (45ms)
+│       ├── Span: auth-service (10ms)
+│       ├── Span: user-service (25ms)
+│       │   └── Span: database (15ms)
+│       └── Span: cache (5ms)
+└── Span: notification (async, 100ms)
+```
+
+**Key Insight**: Traces are expensive but invaluable for debugging.
+
+### Profiles: The Why
+
+Profiling shows where CPU time and memory are spent.
+
+```
+CPU Profile (30 seconds):
+┌────────────────────────────────────────┐
+│ 35% - database.query (users.find)     │
+│ 20% - json.serialize                  │
+│ 15% - auth.verifyToken                │
+│ 10% - redis.get                       │
+│ 20% - other                           │
+└────────────────────────────────────────┘
+```
+
+**Key Insight**: Profiles answer "why is my app slow?"
+
+---
+
+## OpenTelemetry: The New Standard
+
+OpenTelemetry (OTel) has won. It's the vendor-neutral standard for observability.
+
+### Why OpenTelemetry?
+
+**Before OTel**: Vendor lock-in
+- Use Datadog? Write Datadog-specific code
+- Switch to New Relic? Rewrite everything
+
+**After OTel**: Instrument once, export anywhere
+```typescript
+// Instrument your code with OTel
+import { trace } from '@opentelemetry/api';
+
+const tracer = trace.getTracer('my-app');
+
+async function getUser(userId: string) {
+  return tracer.startActiveSpan('getUser', async (span) => {
+    span.setAttribute('user.id', userId);
+
+    try {
+      const user = await db.users.findById(userId);
+      span.setStatus({ code: SpanStatusCode.OK });
+      return user;
+    } catch (error) {
+      span.recordException(error);
+      span.setStatus({ code: SpanStatusCode.ERROR });
+      throw error;
+    } finally {
+      span.end();
+    }
+  });
+}
+```
+
+### The OpenTelemetry Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│           Your Application                  │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐       │
+│  │ Metrics │ │  Logs   │ │ Traces  │       │
+│  │  API    │ │  API    │ │  API    │       │
+│  └────┬────┘ └────┬────┘ └────┬────┘       │
+│       └───────────┬───────────┘             │
+│                   │                         │
+│          ┌────────▼────────┐                │
+│          │   SDK (Auto     │                │
+│          │   Instrument)   │                │
+│          └────────┬────────┘                │
+└───────────────────┼─────────────────────────┘
+                    │
+          ┌─────────▼─────────┐
+          │  OpenTelemetry    │
+          │     Collector     │
+          └─────────┬─────────┘
+                    │
+      ┌─────────────┼─────────────┐
+      │             │             │
+┌─────▼─────┐ ┌─────▼─────┐ ┌────▼────┐
+│  Grafana  │ │ Honeycomb │ │ Datadog │
+│   Tempo   │ │           │ │         │
+└───────────┘ └───────────┘ └─────────┘
+```
+
+### Auto-Instrumentation (The Easy Way)
+
+Most frameworks need zero code changes:
+
+```typescript
+// instrumentation.ts
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+
+const sdk = new NodeSDK({
+  traceExporter: new OTLPTraceExporter({
+    url: 'http://localhost:4318/v1/traces'
+  }),
+  metricReader: new PeriodicExportingMetricReader({
+    exporter: new OTLPMetricExporter({
+      url: 'http://localhost:4318/v1/metrics'
+    }),
+    exportIntervalMillis: 60000
+  }),
+  instrumentations: [getNodeAutoInstrumentations({
+    // Auto-instrument common libraries
+    '@opentelemetry/instrumentation-http': { enabled: true },
+    '@opentelemetry/instrumentation-express': { enabled: true },
+    '@opentelemetry/instrumentation-pg': { enabled: true },
+    '@opentelemetry/instrumentation-redis': { enabled: true },
+  })]
+});
+
+sdk.start();
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  sdk.shutdown()
+    .then(() => console.log('Tracing terminated'))
+    .catch((error) => console.log('Error terminating tracing', error))
+    .finally(() => process.exit(0));
+});
+```
+
+### Manual Instrumentation (When You Need Control)
+
+Auto-instrumentation covers 80%. For the rest:
+
+```typescript
+// Custom business logic spans
+import { trace, SpanStatusCode } from '@opentelemetry/api';
+
+class OrderService {
+  private tracer = trace.getTracer('order-service');
+
+  async processOrder(orderData: OrderData) {
+    return this.tracer.startActiveSpan('processOrder', async (span) => {
+      // Add attributes for filtering/grouping
+      span.setAttributes({
+        'order.id': orderData.id,
+        'order.total': orderData.total,
+        'order.currency': orderData.currency,
+        'customer.id': orderData.customerId,
+        'customer.tier': orderData.customerTier,
+      });
+
+      try {
+        // Validate order
+        await this.tracer.startActiveSpan('validateOrder', async (childSpan) => {
+          await this.validate(orderData);
+          childSpan.setStatus({ code: SpanStatusCode.OK });
+        });
+
+        // Process payment
+        await this.tracer.startActiveSpan('processPayment', async (childSpan) => {
+          const payment = await this.paymentService.charge(orderData);
+          childSpan.setAttribute('payment.id', payment.id);
+          childSpan.setStatus({ code: SpanStatusCode.OK });
+        });
+
+        // Fulfill order
+        await this.tracer.startActiveSpan('fulfillOrder', async (childSpan) => {
+          await this.inventory.reserve(orderData.items);
+          await this.shipping.createShipment(orderData);
+          childSpan.setStatus({ code: SpanStatusCode.OK });
+        });
+
+        span.setStatus({ code: SpanStatusCode.OK });
+        return { success: true, orderId: orderData.id };
+      } catch (error) {
+        span.recordException(error);
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: error.message
+        });
+        throw error;
+      }
+    });
+  }
+}
+```
+
+---
+
+## Distributed Tracing Deep Dive
+
+### Trace Context Propagation
+
+Traces must flow across service boundaries:
+
+```typescript
+// Service A: Frontend
+import { context, propagation } from '@opentelemetry/api';
+
+async function fetchUser(userId: string) {
+  const span = tracer.startSpan('fetchUser');
+
+  // Extract trace context to pass to API
+  const headers = {};
+  propagation.inject(context.active(), headers);
+
+  const response = await fetch('/api/users/' + userId, {
+    headers // Contains traceparent, tracestate
+  });
+
+  span.end();
+  return response.json();
+}
+
+// Service B: API Gateway
+import { propagation, context } from '@opentelemetry/api';
+
+app.use((req, res, next) => {
+  // Extract trace context from incoming request
+  const parentContext = propagation.extract(context.active(), req.headers);
+
+  // Start span as child of incoming trace
+  const span = tracer.startSpan(
+    'handleRequest',
+    {},
+    parentContext
+  );
+
+  // Continue with propagated context
+  context.with(trace.setSpan(parentContext, span), () => {
+    next();
+  });
+});
+```
+
+### Sampling Strategies
+
+Traces are expensive. Use sampling:
+
+```typescript
+// Head-based sampling (decision at start)
+{
+  sampler: new ParentBasedSampler({
+    root: new TraceIdRatioBasedSampler(0.1) // Sample 10%
+  })
+}
+
+// Tail-based sampling (keep interesting traces)
+// Requires collector configuration
+{
+  tail_sampling: {
+    policies: [
+      { error: true }, // Keep all errors
+      { latency: { threshold: 1000 } }, // Keep slow traces (>1s)
+      { numeric_attribute: { key: 'http.status_code', min_value: 500 } }
+    ]
+  }
+}
+```
+
+---
+
+## Metrics That Matter
+
+### The USE Method
+
+For resources (servers, databases):
+- **U**tilization: How busy is it?
+- **S**aturation: How much extra work can it take?
+- **E**rrors: How many failures?
+
+```typescript
+// For a database
+const dbMetrics = {
+  'db.connections.active': 45,
+  'db.connections.max': 100,
+  'db.queries.rate': 150, // per second
+  'db.queries.latency.p95': 45, // ms
+  'db.errors.rate': 0.1, // per second
+  'db.disk.utilization': 0.75, // 75%
+  'db.cpu.utilization': 0.60, // 60%
+};
+```
+
+### The RED Method
+
+For services (APIs, microservices):
+- **R**ate: Requests per second
+- **E**rrors: Error rate
+- **D**uration: Latency
+
+```typescript
+// For an API endpoint
+const endpointMetrics = {
+  'http.requests.rate': 150,
+  'http.errors.rate': 0.5,
+  'http.latency.p50': 25,
+  'http.latency.p95': 120,
+  'http.latency.p99': 250,
+};
+```
+
+### Business Metrics
+
+Don't forget what matters to the business:
+
+```typescript
+const businessMetrics = {
+  'users.active': 5420,
+  'users.signups': 150,
+  'users.churned': 12,
+  'orders.created': 350,
+  'orders.abandoned': 45,
+  'revenue.total': 12500.50,
+  'revenue.per.user': 2.31,
+  'feature.usage.new_checkout': 0.85, // 85% adoption
+};
+```
+
+---
+
+## Structured Logging Best Practices
+
+### The 5 W's of Logging
+
+Every log should answer:
+- **W**ho: User ID, session ID
+- **W**hat: Event type, action
+- **W**hen: Timestamp (with timezone)
+- **W**here: Service, host, region
+- **W**hy: Context, correlation IDs
+
+```typescript
+// Good structured log
+logger.info({
+  // Identity
+  event: 'payment.processed',
+  event_id: 'evt_123',
+  trace_id: 'trace_abc',
+
+  // Who
+  user_id: 'user_123',
+  user_tier: 'premium',
+  session_id: 'sess_xyz',
+
+  // What
+  payment_id: 'pay_456',
+  amount: 99.99,
+  currency: 'USD',
+  method: 'card',
+  status: 'success',
+
+  // Where
+  service: 'payment-service',
+  environment: 'production',
+  region: 'us-east-1',
+  host: 'payment-pod-123',
+
+  // When
+  timestamp: '2026-03-17T10:00:00.000Z',
+  duration_ms: 250,
+
+  // Context
+  cart_id: 'cart_789',
+  items_count: 3,
+  retry_attempt: 0,
+});
+```
+
+### Log Levels
+
+Use them correctly:
+
+```typescript
+// DEBUG: Detailed info for debugging
+logger.debug({
+  event: 'cache.hit',
+  key: 'user:123',
+  ttl_remaining: 450
+});
+
+// INFO: Normal operations
+logger.info({
+  event: 'user.login',
+  user_id: '123'
+});
+
+// WARN: Potential issues
+logger.warn({
+  event: 'db.slow_query',
+  query: 'SELECT...',
+  duration_ms: 2500,
+  threshold_ms: 1000
+});
+
+// ERROR: Actual failures
+logger.error({
+  event: 'payment.failed',
+  error: 'card_declined',
+  user_id: '123',
+  retryable: false
+});
+
+// FATAL: System-wide failures
+logger.fatal({
+  event: 'database.connection_lost',
+  error: 'Connection refused',
+  impact: 'all_users'
+});
+```
+
+---
+
+## The Modern Observability Stack (2026)
+
+### Option 1: The Open Source Stack (Cost-Effective)
+
+```
+┌──────────────────────────────────────────┐
+│           Application                     │
+│    (OTel SDK / Auto-instrument)          │
+└───────────────┬──────────────────────────┘
+                │ OTLP
+┌───────────────▼──────────────────────────┐
+│      OpenTelemetry Collector             │
+│  (Filter, aggregate, export)             │
+└───────┬───────────┬───────────┬──────────┘
+        │           │           │
+   ┌────▼───┐ ┌────▼───┐ ┌─────▼────┐
+   │Grafana │ │Grafana │ │ Grafana  │
+   │Prometheus│ │ Tempo  │ │  Loki    │
+   │(Metrics) │ │(Traces)│ │ (Logs)   │
+   └────────┘ └────────┘ └──────────┘
+        │           │           │
+        └───────────┴───────────┘
+                    │
+              ┌─────▼──────┐
+              │  Grafana   │
+              │  Dashboard │
+              └────────────┘
+
+Cost: ~$200-500/month for moderate traffic
+```
+
+### Option 2: The Managed Stack (Enterprise)
+
+```
+┌──────────────────────────────────────────┐
+│           Application                     │
+│    (OTel SDK / Auto-instrument)          │
+└───────────────┬──────────────────────────┘
+                │ OTLP
+        ┌───────▼────────┐
+        │   Honeycomb    │
+        │   (All-in-one) │
+        └────────────────┘
+
+Cost: ~$2,000-10,000/month
+Benefit: Single pane of glass, correlation
+```
+
+### Option 3: The Hybrid Stack (Best of Both)
+
+```
+┌──────────────────────────────────────────┐
+│           Application                     │
+└───────────────┬──────────────────────────┘
+                │
+        ┌───────▼──────────┐
+        │ OTel Collector   │
+        └───────┬──────────┘
+                │
+    ┌───────────┼───────────┐
+    │           │           │
+┌───▼───┐ ┌─────▼────┐ ┌────▼───┐
+│Grafana│ │Honeycomb │ │  S3    │
+│Metrics│ │  Traces  │ │  Logs  │
+└───────┘ │ (Sample) │ └────────┘
+          └──────────┘
+
+Cost: ~$500-1,500/month
+```
+
+---
+
+## Cost Optimization Strategies
+
+Observability costs can explode. Here's how to control them:
+
+### Strategy 1: Aggressive Sampling
+
+```yaml
+# collector-config.yaml
+processors:
+  tail_sampling:
+    policies:
+      # Keep all errors
+      - name: errors
+        type: status_code
+        status_code: { status_codes: [ERROR] }
+
+      # Keep slow traces (>1s)
+      - name: slow
+        type: latency
+        latency: { threshold_ms: 1000 }
+
+      # Sample the rest at 5%
+      - name: probabilistic
+        type: probabilistic
+        probabilistic: { sampling_percentage: 5 }
+```
+
+### Strategy 2: Data Filtering
+
+```yaml
+# Drop noisy health checks
+processors:
+  filter:
+    spans:
+      exclude:
+        match_type: strict
+        services:
+          - health-check-service
+        span_names:
+          - /health
+          - /ready
+          - /metrics
+```
+
+### Strategy 3: Metric Aggregation
+
+```yaml
+# Pre-aggregate metrics to reduce cardinality
+processors:
+  metricstransform:
+    transforms:
+      - include: http_requests_total
+        match_type: regexp
+        action: update
+        operations:
+          - action: aggregate_labels
+            label_set: [status_code, path]
+            aggregation_type: sum
+```
+
+### Strategy 4: Tiered Storage
+
+```
+Hot Storage (SSD): Last 7 days
+├─ Cost: $0.50/GB/month
+├─ Query latency: <1s
+└─ Use case: Real-time debugging
+
+Warm Storage (SSD/SATA): 7-30 days
+├─ Cost: $0.10/GB/month
+├─ Query latency: 5-10s
+└─ Use case: Incident investigation
+
+Cold Storage (S3): 30+ days
+├─ Cost: $0.02/GB/month
+├─ Query latency: Minutes
+└─ Use case: Compliance, long-term analysis
+```
+
+### Cost Breakdown Example
+
+| Service | 1K RPS | 10K RPS | 100K RPS |
+|---------|--------|---------|----------|
+| **Metrics** | $50/mo | $200/mo | $1,500/mo |
+| **Logs** | $100/mo | $800/mo | $8,000/mo |
+| **Traces (10% sample)** | $200/mo | $1,500/mo | $12,000/mo |
+| **Total** | **$350/mo** | **$2,500/mo** | **$21,500/mo** |
+
+---
+
+## Frontend Observability
+
+Don't forget the client side.
+
+### Real User Monitoring (RUM)
+
+```typescript
+// Web Vitals
+import { onCLS, onINP, onLCP, onTTFB, onFCP } from 'web-vitals';
+
+onLCP(console.log); // Largest Contentful Paint
+onINP(console.log); // Interaction to Next Paint
+onCLS(console.log); // Cumulative Layout Shift
+onFCP(console.log); // First Contentful Paint
+onTTFB(console.log); // Time to First Byte
+
+// Send to your backend
+onLCP((metric) => {
+  fetch('/api/metrics/web-vitals', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: metric.name,
+      value: metric.value,
+      id: metric.id,
+      navigationType: metric.navigationType
+    })
+  });
+});
+```
+
+### Error Tracking
+
+```typescript
+// Global error handler
+window.addEventListener('error', (event) => {
+  reportError({
+    type: 'javascript',
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    stack: event.error?.stack,
+    userAgent: navigator.userAgent,
+    url: window.location.href,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Unhandled promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+  reportError({
+    type: 'promise',
+    message: event.reason?.message || 'Unhandled Promise Rejection',
+    stack: event.reason?.stack,
+    userAgent: navigator.userAgent,
+    url: window.location.href,
+    timestamp: new Date().toISOString()
+  });
+});
+```
+
+### User Session Recording
+
+```typescript
+// Integration with session replay tools
+import * as Sentry from '@sentry/browser';
+
+Sentry.init({
+  dsn: 'your-dsn',
+  integrations: [
+    Sentry.replayIntegration({
+      maskAllText: false,
+      blockAllMedia: false
+    })
+  ],
+  replaysSessionSampleRate: 0.1, // 10% of sessions
+  replaysOnErrorSampleRate: 1.0 // 100% of errors
+});
+```
+
+---
+
+## Alerting and SLOs
+
+### Define SLIs, SLOs, and SLAs
+
+```
+SLI (Service Level Indicator): What you measure
+├─ "HTTP request latency"
+
+SLO (Service Level Objective): Your target
+├─ "95% of requests complete in < 200ms"
+
+SLA (Service Level Agreement): Contract with users
+├─ "99.9% uptime or 10% refund"
+```
+
+### Alerting Rules
+
+```yaml
+# prometheus-alerts.yaml
+groups:
+  - name: service_alerts
+    rules:
+      # Alert on error rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      # Alert on latency
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected"
+          description: "p95 latency is {{ $value }}s"
+
+      # Alert on saturation
+      - alert: HighCPUUsage
+        expr: cpu_usage_percent > 80
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+```
+
+### Alert Fatigue Prevention
+
+```yaml
+# Group related alerts
+groups:
+  - name: database_alerts
+    rules:
+      # Don't alert on every slow query
+      - alert: DatabaseSlowQueries
+        expr: |
+          sum(rate(postgresql_slow_queries_total[5m])) > 10
+        for: 10m  # Must be elevated for 10 minutes
+
+      # Severity-based routing
+      - alert: DatabaseDown
+        expr: postgresql_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: dba
+          pager: true  # Page immediately
+```
+
+---
+
+## Debugging with Observability
+
+### The Debugging Workflow
+
+```
+1. ALERT: High error rate on /api/payments
+
+2. CHECK: Metrics dashboard
+   ├─ Error rate spiked at 14:30
+   ├─ Latency increased from 50ms to 500ms
+   └─ Database connections maxed out
+
+3. INVESTIGATE: Logs
+   ├─ "Connection pool exhausted"
+   └─ "Timeout waiting for connection"
+
+4. TRACE: Follow a failed request
+   ├─ payment-service (500ms)
+   ├─ └─ database.query (480ms)
+   ├─    └─ Waiting for connection...
+
+5. PROFILE: Check database
+   ├─ Long-running queries holding connections
+   └─ Missing index on payments.user_id
+
+6. FIX: Add index, scale connection pool
+
+7. VERIFY: Metrics return to normal
+```
+
+### Correlation IDs
+
+```typescript
+// Pass correlation ID through entire request
+import { v4 as uuid } from 'uuid';
+
+// Middleware
+app.use((req, res, next) => {
+  req.correlationId = req.headers['x-correlation-id'] || uuid();
+  res.setHeader('x-correlation-id', req.correlationId);
+
+  // Add to all logs
+  logger.child({ correlation_id: req.correlationId });
+
+  next();
+});
+
+// Now all logs from this request have the same ID
+// Easy to find related logs in Elasticsearch/Loki
+```
+
+---
+
+## Common Anti-Patterns
+
+### 1. Console.log Debugging
+
+```typescript
+// ❌ Don't do this
+console.log('here');
+console.log(data);
+console.log('user:', user);
+
+// ✅ Do this
+logger.debug({
+  event: 'user.data.loaded',
+  user_id: user.id,
+  record_count: data.length,
+  duration_ms: 145
+});
+```
+
+### 2. High Cardinality Metrics
+
+```typescript
+// ❌ Don't do this
+http_requests_total{user_id="123"} // Millions of unique users!
+
+// ✅ Do this
+http_requests_total{user_tier="premium", region="us-east"}
+```
+
+### 3. Logging Sensitive Data
+
+```typescript
+// ❌ Don't do this
+logger.info({
+  event: 'payment.processed',
+  card_number: '4532-1234-5678-9012', // NEVER!
+  cvv: '123'
+});
+
+// ✅ Do this
+logger.info({
+  event: 'payment.processed',
+  payment_method: 'card',
+  card_last_four: '9012',
+  amount: 99.99
+});
+```
+
+### 4. Infinite Cardinality
+
+```typescript
+// ❌ Don't do this
+const userId = req.params.id;
+metrics.counter('user.requests', { userId }); // Infinite values!
+
+// ✅ Do this
+metrics.counter('user.requests', {
+  user_tier: getUserTier(userId),
+  region: getRegion(req)
+});
+```
+
+---
+
+## Conclusion
+
+Observability is not optional for production applications. The good news: OpenTelemetry makes it easier than ever to build observable systems without vendor lock-in.
+
+Start small:
+1. **Week 1**: Set up OpenTelemetry with auto-instrumentation
+2. **Week 2**: Add structured logging
+3. **Week 3**: Configure metrics dashboards
+4. **Week 4**: Set up alerting
+
+Remember: **You can't fix what you can't see**. Invest in observability early—it pays dividends when things break (and they will).
+
+---
+
+*Need help setting up observability? I offer consulting on observability architecture and cost optimization—[reach out](mailto:contact@ioodu.com).*
+
+*Related: [LLM Observability](/tech/llm-observability-production), [System Design](/tech/system-design-interview-playbook-2026)*
+
+*Last updated: March 17, 2026. Observability tools evolve fast—check back for updates.*
