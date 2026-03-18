@@ -1,0 +1,108 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="AI Stack Decision Framework | Free Download"
+  description="A systematic approach to choosing the right AI tools — and avoiding $50k mistakes."
+>
+  <div class="page-container">
+    <div class="max-w-2xl mx-auto">
+      {/* Hero Section */}
+      <div class="text-center py-12">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyber-cyan/10 text-cyber-cyan text-sm font-medium mb-6">
+          <span>Free Download</span>
+        </div>
+
+        <h1 class="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6">
+          AI Stack Decision Framework
+        </h1>
+
+        <p class="text-xl text-slate-600 dark:text-slate-400 mb-8">
+          A systematic approach to choosing the right AI tools — and avoiding $50k mistakes
+        </p>
+
+        {/* What's Inside */}
+        <div class="bg-slate-50 dark:bg-slate-900 rounded-xl p-8 mb-8 text-left">
+          <h2 class="text-lg font-bold mb-4 text-slate-900 dark:text-white">What's inside:</h2>
+          <ul class="space-y-3">
+            <li class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-cyber-cyan mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span class="text-slate-600 dark:text-slate-400">The 5-step evaluation process used by 100+ teams</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-cyber-cyan mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span class="text-slate-600 dark:text-slate-400">Tool categories and when to use each one</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-cyber-cyan mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span class="text-slate-600 dark:text-slate-400">Cost comparison matrix (per 1M tokens)</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-cyber-cyan mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span class="text-slate-600 dark:text-slate-400">Build vs Buy decision tree</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-cyber-cyan mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span class="text-slate-600 dark:text-slate-400">2-week POC checklist (don't skip this!)</span>
+            </li>
+          </ul>
+        </div>
+
+        {/* Email Capture Form */}
+        <div class="bg-white dark:bg-slate-900 rounded-xl p-8 border border-slate-200 dark:border-slate-800">
+          <h3 class="text-xl font-bold mb-2 text-slate-900 dark:text-white">Get instant access</h3>
+          <p class="text-slate-600 dark:text-slate-400 mb-6">Enter your email and I'll send you the framework immediately.</p>
+
+          <form
+            action="https://app.convertkit.com/forms/23340727/submissions"
+            method="post"
+            class="flex flex-col sm:flex-row gap-3"
+          >
+            <input
+              type="email"
+              name="email_address"
+              placeholder="your@email.com"
+              required
+              class="flex-1 px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-cyber-cyan focus:ring-1 focus:ring-cyber-cyan"
+            />
+            <button
+              type="submit"
+              class="px-8 py-3 rounded-lg font-medium transition-all duration-200 bg-cyber-cyan text-slate-900 hover:bg-cyber-cyan/80 whitespace-nowrap"
+            >
+              Get the Framework
+            </button>
+          </form>
+
+          <p class="text-xs text-slate-500 mt-4">No spam. Unsubscribe anytime. I respect your inbox.</p>
+        </div>
+
+        {/* Social Proof */}
+        <p class="text-sm text-slate-500 mt-6">
+          Join 500+ engineers who've downloaded this framework
+        </p>
+      </div>
+
+      {/* Trust Section */}
+      <div class="border-t border-slate-200 dark:border-slate-800 pt-12 mt-12">
+        <p class="text-center text-sm text-slate-500 mb-6">Used by teams at</p>
+        <div class="flex items-center justify-center gap-8 opacity-50">
+          {/* Placeholder company logos - replace with actual client logos */}
+          <div class="text-slate-400 font-semibold">Company A</div>
+          <div class="text-slate-400 font-semibold">Company B</div>
+          <div class="text-slate-400 font-semibold">Company C</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

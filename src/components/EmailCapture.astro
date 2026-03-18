@@ -1,29 +1,46 @@
 ---
 interface Props {
-  cta: string;
-  offer: string;
+  variant?: 'inline' | 'boxed' | 'minimal';
+  headline?: string;
+  description?: string;
+  buttonText?: string;
 }
 
-const { cta, offer } = Astro.props;
+const {
+  variant = 'boxed',
+  headline = 'Get the AI Stack Decision Framework',
+  description = 'A systematic approach to choosing the right AI tools — and avoiding $50k mistakes.',
+  buttonText = 'Get the Free Framework'
+} = Astro.props;
+
+// Variant-specific classes
+const variantClasses = {
+  boxed: 'email-capture--boxed',
+  inline: 'email-capture--inline',
+  minimal: 'email-capture--minimal'
+};
 ---
 
-<div class="email-capture" data-offer={offer}>
-  {/* CONFIGURE: Replace PLACEHOLDER_FORM_ID with your ConvertKit form ID */}
-  {/* See docs/external-services.md for setup instructions */}
-  <form action="https://app.convertkit.com/forms/PLACEHOLDER_FORM_ID/submissions" method="post">
-    <input type="email" name="email_address" placeholder="Enter your email" required />
-    <input type="hidden" name="tag" value={offer} />
-    <button type="submit">{cta}</button>
-  </form>
-  <p class="privacy">No spam. Unsubscribe anytime.</p>
-</div>
+<div class={`email-capture ${variantClasses[variant]}`}>
+  {headline && <h4 class="email-capture__headline">{headline}</h4>}
+  {description && <p class="email-capture__description">{description}</p>}
 
-<style>
-  .email-capture {
-    border: 1px solid var(--border-color);
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin: 2rem 0;
-    background: var(--bg-secondary);
-  }
-</style>
+  <form
+    action="https://app.convertkit.com/forms/23340727/submissions"
+    method="post"
+    class="email-capture__form"
+  >
+    <input
+      type="email"
+      name="email_address"
+      placeholder="Enter your email"
+      required
+      class="email-capture__input"
+    />
+    <button type="submit" class="email-capture__button">
+      {buttonText}
+    </button>
+  </form>
+
+  <p class="email-capture__privacy">No spam. Unsubscribe anytime. I respect your inbox.</p>
+</div>

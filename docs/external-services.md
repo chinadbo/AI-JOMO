@@ -7,23 +7,43 @@
 
 ## ConvertKit Setup (Email Capture)
 
-**File to update:** `src/components/EmailCapture.astro`
+**Lead Magnet:** AI Stack Decision Framework
+**Files to update:**
+- `src/components/EmailCapture.astro`
+- `src/pages/framework.astro`
 
-### Steps:
+**Content ready:** See `docs/lead-magnets/` for:
+- `ai-stack-decision-framework.md` - The lead magnet content
+- `email-capture-config.md` - Full ConvertKit setup guide
+
+### Quick Setup:
+
 1. Create account at https://convertkit.com
-2. Create a new form for email capture
-   - Navigate to "Forms" → "Create New"
-   - Choose "Inline" form type
-   - Name it "Newsletter Signup" or similar
-3. Get your form ID from the form URL or embed code
-   - The form ID appears in URLs like: `https://app.convertkit.com/forms/1234567/edit`
-   - Or in the embed code: `data-sv-form="1234567"`
-4. Update EmailCapture.astro:
-   - Replace `PLACEHOLDER_FORM_ID` with your actual form ID (numbers only)
+2. Create a new form:
+   - **Name:** "AI Stack Decision Framework Lead Magnet"
+   - **Type:** Inline
+   - **Fields:** Email only (higher conversion)
+3. Get your form ID from the URL (e.g., `forms/1234567/edit` → ID is `1234567`)
+4. Replace `PLACEHOLDER_FORM_ID` in:
+   - `src/components/EmailCapture.astro`
+   - `src/pages/framework.astro`
+5. Set up welcome email sequence (see email-capture-config.md)
 
-### Verification:
-- Test the form submission
-- Verify emails appear in your ConvertKit subscribers
+### Lead Magnet Landing Page:
+Access at: `/framework`
+
+**What's Included:**
+- 5-step evaluation process
+- Tool categories guide
+- Cost comparison matrix
+- Build vs Buy decision tree
+- 2-week POC checklist
+
+**Email Sequence:**
+- Email 1: Deliver framework (immediate)
+- Email 2: Case study (Day 2)
+- Email 3: RAG deep dive (Day 4)
+- Email 4: Course soft sell (Day 7)
 
 ---
 
@@ -106,9 +126,9 @@
 ## Pre-Launch Checklist
 
 - [ ] ConvertKit account created and form ID configured
-- [ ] Gumroad account created and all 4 products published
-- [ ] Calendly account created and all 4 event types configured
-- [ ] All PLACEHOLDER values replaced in code
+- [x] Gumroad account created and all 4 products published
+- [x] Calendly account created and all 4 event types configured
+- [x] All PLACEHOLDER values replaced in code
 - [ ] Tested all links (email form, purchase links, booking links)
 - [ ] Verified integrations work end-to-end
 

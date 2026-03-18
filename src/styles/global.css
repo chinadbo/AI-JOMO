@@ -25,11 +25,18 @@
   --font-display: 'JetBrains Mono', ui-monospace, sans-serif;
 }
 
-/* CSS Variables for fonts */
+/* CSS Variables for fonts and component styles */
 :root {
   --font-display: 'JetBrains Mono', ui-monospace, sans-serif;
   --font-body: 'Noto Sans SC', 'Source Serif 4', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --border-color: #e2e8f0;
+  --bg-secondary: #ffffff;
+}
+
+.dark {
+  --border-color: #1e293b;
+  --bg-secondary: #0f172a;
 }
 
 /* 暗黑模式配置 */
@@ -250,6 +257,85 @@ hr {
   }
 }
 
+/* Products & Services Page Styles */
+.page-container {
+  @apply max-w-6xl mx-auto px-4 py-12;
+}
+
+.page-container h1 {
+  @apply text-3xl md:text-4xl font-bold text-slate-900 dark:text-white;
+}
+
+.subtitle {
+  @apply text-xl text-slate-600 dark:text-slate-400 mt-2 mb-8;
+}
+
+.price {
+  @apply text-2xl font-bold text-cyber-cyan mb-2;
+}
+
+.target {
+  @apply text-sm text-slate-500 dark:text-slate-400 mt-2 mb-4;
+}
+
+/* Button Styles */
+.btn {
+  @apply inline-block px-6 py-3 rounded-lg font-medium transition-all duration-200;
+  @apply bg-cyber-cyan text-slate-900 hover:bg-cyber-cyan/80;
+}
+
+.btn:hover {
+  box-shadow: 0 0 20px rgba(0, 245, 255, 0.3);
+}
+
+/* Services Grid */
+.services-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6 mt-8;
+}
+
+.service-card {
+  @apply p-6 rounded-xl border border-slate-200 dark:border-slate-800;
+  @apply bg-white dark:bg-slate-900;
+  @apply transition-all duration-300;
+}
+
+.service-card:hover {
+  @apply border-cyber-cyan/50;
+  box-shadow: 0 0 30px rgba(0, 245, 255, 0.1);
+}
+
+.service-card h2 {
+  @apply text-xl font-bold mb-2 text-slate-900 dark:text-white;
+}
+
+.service-card p {
+  @apply text-slate-600 dark:text-slate-400 mb-4;
+}
+
+/* Products Grid */
+.products-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6 mt-8;
+}
+
+.product-card {
+  @apply p-6 rounded-xl border border-slate-200 dark:border-slate-800;
+  @apply bg-white dark:bg-slate-900;
+  @apply transition-all duration-300;
+}
+
+.product-card:hover {
+  @apply border-cyber-cyan/50;
+  box-shadow: 0 0 30px rgba(0, 245, 255, 0.1);
+}
+
+.product-card h2 {
+  @apply text-xl font-bold mb-2 text-slate-900 dark:text-white;
+}
+
+.product-card p {
+  @apply text-slate-600 dark:text-slate-400 mb-2;
+}
+
 /* 动画工具类 */
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
@@ -286,4 +372,115 @@ pre.shiki code {
 
 .code-block-copy {
   @apply text-xs text-slate-500 hover:text-cyber-cyan transition-colors;
+}
+
+/* CTA Component Styles */
+.product-cta,
+.service-cta,
+.email-capture {
+  @apply p-6 rounded-xl border border-slate-200 dark:border-slate-800;
+  @apply bg-white dark:bg-slate-900;
+  @apply transition-all duration-300;
+  margin: 2rem 0;
+}
+
+.product-cta:hover,
+.service-cta:hover,
+.email-capture:hover {
+  @apply border-cyber-cyan/50;
+  box-shadow: 0 0 30px rgba(0, 245, 255, 0.1);
+}
+
+.product-cta h4,
+.service-cta h3,
+.email-capture h4 {
+  @apply text-lg font-bold mb-2 text-slate-900 dark:text-white;
+}
+
+.product-cta .price,
+.service-cta .price {
+  @apply text-2xl font-bold text-cyber-cyan mb-2;
+}
+
+.product-cta p,
+.service-cta p {
+  @apply text-slate-600 dark:text-slate-400 mb-4;
+}
+
+.email-capture form {
+  @apply flex flex-col sm:flex-row gap-2;
+}
+
+.email-capture input[type="email"] {
+  @apply flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700;
+  @apply bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white;
+  @apply focus:outline-none focus:border-cyber-cyan focus:ring-1 focus:ring-cyber-cyan;
+}
+
+.email-capture button[type="submit"] {
+  @apply px-6 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply bg-cyber-cyan text-slate-900 hover:bg-cyber-cyan/80;
+}
+
+.email-capture button[type="submit"]:hover {
+  box-shadow: 0 0 20px rgba(0, 245, 255, 0.3);
+}
+
+.email-capture .privacy {
+  @apply text-xs text-slate-500 mt-3;
+}
+
+/* EmailCapture Component Styles */
+.email-capture {
+  margin: 2rem 0;
+}
+
+.email-capture--boxed {
+  @apply p-6 rounded-xl border border-slate-200 dark:border-slate-800;
+  @apply bg-white dark:bg-slate-900;
+  @apply transition-all duration-300;
+}
+
+.email-capture--boxed:hover {
+  @apply border-cyber-cyan/50;
+  box-shadow: 0 0 30px rgba(0, 245, 255, 0.1);
+}
+
+.email-capture--inline {
+  @apply flex flex-col sm:flex-row items-center gap-4;
+}
+
+.email-capture--minimal {
+  @apply p-0 border-0 bg-transparent;
+}
+
+.email-capture__headline {
+  @apply text-lg font-bold mb-2 text-slate-900 dark:text-white;
+}
+
+.email-capture__description {
+  @apply text-sm text-slate-600 dark:text-slate-400 mb-4;
+}
+
+.email-capture__form {
+  @apply flex flex-col sm:flex-row gap-2;
+}
+
+.email-capture__input {
+  @apply flex-1 px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700;
+  @apply bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white;
+  @apply focus:outline-none focus:border-cyber-cyan focus:ring-1 focus:ring-cyber-cyan;
+}
+
+.email-capture__button {
+  @apply px-6 py-3 rounded-lg font-medium transition-all duration-200 whitespace-nowrap;
+  @apply bg-cyber-cyan text-slate-900 hover:bg-cyber-cyan/80;
+}
+
+.email-capture__button:hover {
+  box-shadow: 0 0 20px rgba(0, 245, 255, 0.3);
+}
+
+.email-capture__privacy {
+  @apply text-xs text-slate-500 mt-3;
 }
