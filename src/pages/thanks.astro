@@ -1,0 +1,84 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Thanks! Check Your Email | AI JOMO"
+  description="Your AI Stack Decision Framework is on its way to your inbox."
+>
+  <div class="page-container">
+    <div class="max-w-2xl mx-auto text-center py-16">
+      {/* Success Icon */}
+      <div class="mb-8">
+        <div class="w-20 h-20 mx-auto rounded-full bg-cyber-cyan/10 flex items-center justify-center">
+          <svg class="w-10 h-10 text-cyber-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+      </div>
+
+      <h1 class="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-6">
+        Thanks! Check Your Email
+      </h1>
+
+      <p class="text-xl text-slate-600 dark:text-slate-400 mb-8">
+        Your <strong>AI Stack Decision Framework</strong> is on its way to your inbox.
+      </p>
+
+      {/* What's Next */}
+      <div class="bg-slate-50 dark:bg-slate-900 rounded-xl p-8 mb-8 text-left">
+        <h2 class="text-lg font-bold mb-4 text-slate-900 dark:text-white">What to expect:</h2>
+        <ul class="space-y-4">
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-cyber-cyan/10 text-cyber-cyan flex items-center justify-center text-sm font-bold flex-shrink-0">1</span>
+            <span class="text-slate-600 dark:text-slate-400">
+              <strong>Confirmation email</strong> — Click the link to confirm your subscription (this helps keep spam out)
+            </span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-cyber-cyan/10 text-cyber-cyan flex items-center justify-center text-sm font-bold flex-shrink-0">2</span>
+            <span class="text-slate-600 dark:text-slate-400">
+              <strong>Download the framework</strong> — You'll get the PDF immediately after confirming
+            </span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-cyber-cyan/10 text-cyber-cyan flex items-center justify-center text-sm font-bold flex-shrink-0">3</span>
+            <span class="text-slate-600 dark:text-slate-400">
+              <strong>Email series</strong> — Over the next week, I'll share case studies and implementation tips
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      {/* Didn't Receive */}
+      <div class="text-sm text-slate-500 dark:text-slate-400 mb-8">
+        <p class="mb-2">Didn't receive the email?</p>
+        <ul class="space-y-1">
+          <li>• Check your spam/promotions folder</li>
+          <li>• Add <code>chinadbo@ioodu.com</code> to your contacts</li>
+          <li>• Wait 5-10 minutes (sometimes there's a delay)</li>
+        </ul>
+      </div>
+
+      {/* CTA */}
+      <div class="border-t border-slate-200 dark:border-slate-800 pt-8">
+        <p class="text-slate-600 dark:text-slate-400 mb-4">
+          While you wait, check out these resources:
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href="/tech" class="btn">
+            Read Tech Articles
+          </a>
+          <a href="/products" class="btn-cyber">
+            Browse Products
+          </a>
+        </div>
+      </div>
+
+      {/* Social Proof */}
+      <p class="text-xs text-slate-500 mt-8">
+        Join 500+ engineers building better AI systems
+      </p>
+    </div>
+  </div>
+</BaseLayout>

@@ -484,3 +484,14 @@ pre.shiki code {
 .email-capture__privacy {
   @apply text-xs text-slate-500 mt-3;
 }
+
+/* Button cyber variant */
+.btn-cyber {
+  @apply inline-block px-6 py-3 rounded-lg font-medium transition-all duration-200;
+  @apply bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30;
+}
+
+.btn-cyber:hover {
+  @apply bg-cyber-cyan/20 border-cyber-cyan/50;
+  box-shadow: 0 0 20px rgba(0, 245, 255, 0.2);
+}
