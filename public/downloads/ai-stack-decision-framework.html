@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Stack Decision Framework</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @page {
+      size: A4;
+      margin: 15mm;
+    }
+
+    @page :first {
+      margin-top: 10mm;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.6;
+      color: #1a1a2e;
+      background: white;
+    }
+
+    .container {
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 0 10mm;
+    }
+
+    /* Cover Page */
+    .cover {
+      min-height: 267mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: white;
+      padding: 40px;
+      margin: -15mm -25mm 0;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      background: #00f5ff;
+      color: #0f172a;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 11pt;
+      font-weight: 600;
+      margin-bottom: 30px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .cover h1 {
+      font-size: 32pt;
+      font-weight: 700;
+      margin-bottom: 15px;
+      line-height: 1.2;
+    }
+
+    .cover-subtitle {
+      font-size: 14pt;
+      color: #94a3b8;
+      margin-bottom: 40px;
+      max-width: 400px;
+    }
+
+    .cover-features {
+      display: flex;
+      gap: 30px;
+      margin-top: 20px;
+    }
+
+    .cover-feature {
+      text-align: center;
+    }
+
+    .cover-feature-icon {
+      width: 50px;
+      height: 50px;
+      background: rgba(0, 245, 255, 0.1);
+      border: 1px solid rgba(0, 245, 255, 0.3);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+      font-size: 20px;
+    }
+
+    .cover-feature-text {
+      font-size: 9pt;
+      color: #94a3b8;
+    }
+
+    .cover-author {
+      margin-top: 60px;
+      padding-top: 30px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .cover-author-name {
+      font-size: 12pt;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .cover-author-title {
+      font-size: 9pt;
+      color: #64748b;
+    }
+
+    /* Content Sections */
+    .section {
+      padding: 25px 0;
+      page-break-inside: avoid;
+    }
+
+    .section-title {
+      font-size: 18pt;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #00f5ff;
+      display: inline-block;
+    }
+
+    .section-subtitle {
+      font-size: 12pt;
+      color: #64748b;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      font-size: 14pt;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 25px 0 12px;
+    }
+
+    h3 {
+      font-size: 11pt;
+      font-weight: 600;
+      color: #334155;
+      margin: 18px 0 8px;
+    }
+
+    p {
+      margin-bottom: 12px;
+      color: #475569;
+    }
+
+    /* Problem List */
+    .problem-list {
+      background: #fef2f2;
+      border-left: 4px solid #ef4444;
+      padding: 15px 20px;
+      margin: 20px 0;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .problem-list h3 {
+      color: #dc2626;
+      margin-top: 0;
+    }
+
+    .problem-list ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .problem-list li {
+      padding: 8px 0;
+      padding-left: 25px;
+      position: relative;
+      color: #7f1d1d;
+    }
+
+    .problem-list li::before {
+      content: "✗";
+      position: absolute;
+      left: 0;
+      color: #ef4444;
+      font-weight: bold;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 9pt;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    th {
+      background: #0f172a;
+      color: white;
+      font-weight: 600;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    tr:hover {
+      background: #f1f5f9;
+    }
+
+    /* Framework Steps */
+    .step {
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      position: relative;
+    }
+
+    .step-number {
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      width: 30px;
+      height: 30px;
+      background: #00f5ff;
+      color: #0f172a;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14pt;
+    }
+
+    .step h3 {
+      margin-top: 10px;
+      color: #0f172a;
+    }
+
+    /* Tool Categories */
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 15px 0;
+    }
+
+    .tool-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .tool-card-category {
+      font-size: 8pt;
+      color: #00f5ff;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .tool-card-tools {
+      font-size: 9pt;
+      color: #475569;
+    }
+
+    /* Decision Tree */
+    .decision-tree {
+      background: #0f172a;
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 9pt;
+      line-height: 1.8;
+    }
+
+    .decision-tree .question {
+      color: #00f5ff;
+      font-weight: bold;
+    }
+
+    .decision-tree .branch {
+      color: #94a3b8;
+    }
+
+    .decision-tree .answer {
+      color: #10b981;
+    }
+
+    /* Checklist */
+    .checklist {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 15px 20px;
+      margin: 15px 0;
+    }
+
+    .checklist h3 {
+      color: #15803d;
+      margin-top: 0;
+    }
+
+    .checklist ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .checklist li {
+      padding: 6px 0;
+      padding-left: 28px;
+      position: relative;
+    }
+
+    .checklist li::before {
+      content: "☐";
+      position: absolute;
+      left: 0;
+      color: #22c55e;
+      font-size: 14pt;
+    }
+
+    /* Patterns */
+    .pattern {
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 15px;
+      margin: 15px 0;
+      page-break-inside: avoid;
+    }
+
+    .pattern-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .pattern-name {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 11pt;
+    }
+
+    .pattern-cost {
+      background: #00f5ff;
+      color: #0f172a;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 8pt;
+      font-weight: 600;
+    }
+
+    .pattern-meta {
+      display: flex;
+      gap: 15px;
+      font-size: 8pt;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+
+    .pattern-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Red Flags */
+    .red-flags {
+      background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .red-flags h3 {
+      color: #dc2626;
+      margin-top: 0;
+    }
+
+    .red-flag-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #fecaca;
+    }
+
+    .red-flag-item:last-child {
+      border-bottom: none;
+    }
+
+    .red-flag-number {
+      width: 24px;
+      height: 24px;
+      background: #dc2626;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 10pt;
+      flex-shrink: 0;
+    }
+
+    /* Cost Table */
+    .cost-highlight {
+      background: #00f5ff;
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* Template Box */
+    .template-box {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 8pt;
+      line-height: 1.6;
+    }
+
+    .template-box h3 {
+      color: #00f5ff;
+      margin-top: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* CTA Section */
+    .cta-section {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin: 30px 0;
+      text-align: center;
+    }
+
+    .cta-section h2 {
+      color: white;
+      margin-top: 0;
+    }
+
+    .cta-section p {
+      color: #94a3b8;
+    }
+
+    .services-list {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .service-item {
+      background: rgba(255,255,255,0.05);
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .service-item h4 {
+      color: #00f5ff;
+      margin: 0 0 5px;
+      font-size: 10pt;
+    }
+
+    .service-item p {
+      color: #94a3b8;
+      margin: 0;
+      font-size: 9pt;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 30px;
+      color: #64748b;
+      font-size: 8pt;
+      border-top: 1px solid #e2e8f0;
+      margin-top: 30px;
+    }
+
+    /* Print Styles */
+    @media print {
+      .cover {
+        margin: 0;
+        min-height: 100vh;
+      }
+
+      .section {
+        page-break-inside: avoid;
+      }
+
+      .pattern {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Cover Page -->
+  <div class="cover">
+    <div class="cover-badge">Free Framework</div>
+    <h1>AI Stack<br>Decision Framework</h1>
+    <p class="cover-subtitle">A systematic approach to choosing the right AI tools — and avoiding $50k mistakes</p>
+
+    <div class="cover-features">
+      <div class="cover-feature">
+        <div class="cover-feature-icon">📊</div>
+        <div class="cover-feature-text">Evaluation Matrix</div>
+      </div>
+      <div class="cover-feature">
+        <div class="cover-feature-icon">💰</div>
+        <div class="cover-feature-text">Cost Comparison</div>
+      </div>
+      <div class="cover-feature">
+        <div class="cover-feature-icon">✅</div>
+        <div class="cover-feature-text">POC Checklist</div>
+      </div>
+    </div>
+
+    <div class="cover-author">
+      <div class="cover-author-name">Ioodu</div>
+      <div class="cover-author-title">AI Engineer & Consultant</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Why Teams Get This Wrong -->
+    <div class="section">
+      <h2 class="section-title">Why Most Teams Get This Wrong</h2>
+
+      <div class="problem-list">
+        <h3>Common Mistakes</h3>
+        <ul>
+          <li><strong>Hype-driven decisions</strong> — Choosing tools based on what's trending on Twitter</li>
+          <li><strong>Vendor lock-in</strong> — Picking proprietary solutions without exit strategy</li>
+          <li><strong>Over-engineering</strong> — Using complex solutions for simple problems</li>
+          <li><strong>Ignoring costs</strong> — Not factoring in API costs, infrastructure, and maintenance</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- The Framework -->
+    <div class="section">
+      <h2 class="section-title">The 5-Step Framework</h2>
+      <p class="section-subtitle">Used by 100+ teams to make confident AI tool decisions</p>
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Define Your Problem</h3>
+        <p>Before looking at tools, answer these questions:</p>
+        <table>
+          <tr>
+            <th>Question</th>
+            <th>Example Answer</th>
+          </tr>
+          <tr>
+            <td>What task are you automating?</td>
+            <td>Customer support ticket classification</td>
+          </tr>
+          <tr>
+            <td>What's your latency requirement?</td>
+            <td>&lt; 500ms (real-time) or batch okay?</td>
+          </tr>
+          <tr>
+            <td>What's your accuracy threshold?</td>
+            <td>95%+ for this use case</td>
+          </tr>
+          <tr>
+            <td>What's your monthly budget?</td>
+            <td>$500/month for this feature</td>
+          </tr>
+          <tr>
+            <td>Do you need custom training?</td>
+            <td>No, pre-trained model should work</td>
+          </tr>
+          <tr>
+            <td>What's your data sensitivity?</td>
+            <td>Contains PII, needs data residency</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Map Tool Categories</h3>
+        <p>Map your problem to these categories:</p>
+        <div class="tool-grid">
+          <div class="tool-card">
+            <div class="tool-card-category">LLM APIs</div>
+            <div class="tool-card-tools">GPT-4, Claude, Gemini, Llama</div>
+          </div>
+          <div class="tool-card">
+            <div class="tool-card-category">Vector Databases</div>
+            <div class="tool-card-tools">Pinecone, Weaviate, Chroma, PGVector</div>
+          </div>
+          <div class="tool-card">
+            <div class="tool-card-category">Embedding Models</div>
+            <div class="tool-card-tools">OpenAI, Cohere, Sentence Transformers</div>
+          </div>
+          <div class="tool-card">
+            <div class="tool-card-category">Orchestration</div>
+            <div class="tool-card-tools">LangChain, LlamaIndex, custom code</div>
+          </div>
+          <div class="tool-card">
+            <div class="tool-card-category">Monitoring</div>
+            <div class="tool-card-tools">Langfuse, Weights & Biases, custom</div>
+          </div>
+          <div class="tool-card">
+            <div class="tool-card-category">Deployment</div>
+            <div class="tool-card-tools">Vercel, AWS, GCP, self-hosted</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Evaluation Matrix</h3>
+        <p>Score each candidate tool on these dimensions (1-5):</p>
+        <table>
+          <tr>
+            <th>Dimension</th>
+            <th>Weight</th>
+            <th>Tool A</th>
+            <th>Tool B</th>
+            <th>Tool C</th>
+          </tr>
+          <tr>
+            <td>Performance (accuracy/speed)</td>
+            <td>30%</td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Cost (per 1K requests)</td>
+            <td>25%</td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Ease of integration</td>
+            <td>20%</td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Vendor stability</td>
+            <td>15%</td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Customization options</td>
+            <td>10%</td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td><strong>Weighted Score</strong></td>
+            <td>100%</td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-number">4</div>
+        <h3>Build vs Buy Decision Tree</h3>
+        <div class="decision-tree">
+          <div class="question">Do you have ML expertise in-house?</div>
+          <div class="branch">
+            ├── No → <span class="answer">Start with API-based solutions</span><br>
+            └── Yes → Do you need &lt;10ms latency?<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── Yes → <span class="answer">Consider self-hosted models</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;└── No → Is data privacy critical?<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Yes → <span class="answer">Self-hosted or private cloud</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── No → <span class="answer">API solutions acceptable</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-number">5</div>
+        <h3>Proof of Concept Checklist</h3>
+        <p>Before committing, validate with a 2-week POC:</p>
+        <div class="checklist">
+          <ul>
+            <li>Integrate with your actual data</li>
+            <li>Measure end-to-end latency</li>
+            <li>Calculate projected costs at scale</li>
+            <li>Test error handling and edge cases</li>
+            <li>Evaluate documentation and support</li>
+            <li>Check community size (GitHub stars, Discord)</li>
+            <li>Review vendor roadmap and stability</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Common Patterns -->
+    <div class="section">
+      <h2 class="section-title">4 Common Patterns</h2>
+
+      <div class="pattern">
+        <div class="pattern-header">
+          <div class="pattern-name">Pattern 1: Simple Classification</div>
+          <div class="pattern-cost">~$0.002/request</div>
+        </div>
+        <div class="pattern-meta">
+          <span>🔧 OpenAI GPT-3.5 + Function Calling</span>
+          <span>✓ Clear categories, &lt; 100 categories</span>
+        </div>
+      </div>
+
+      <div class="pattern">
+        <div class="pattern-header">
+          <div class="pattern-name">Pattern 2: RAG (Retrieval Augmented Generation)</div>
+          <div class="pattern-cost">~$0.005/query</div>
+        </div>
+        <div class="pattern-meta">
+          <span>🔧 LlamaIndex + OpenAI Embeddings + Pinecone</span>
+          <span>✓ Need to reference your documents</span>
+        </div>
+      </div>
+
+      <div class="pattern">
+        <div class="pattern-header">
+          <div class="pattern-name">Pattern 3: Real-time Chat</div>
+          <div class="pattern-cost">~$0.001/message</div>
+        </div>
+        <div class="pattern-meta">
+          <span>🔧 Claude 3 Haiku + WebSocket + Redis</span>
+          <span>✓ Conversational interfaces</span>
+        </div>
+      </div>
+
+      <div class="pattern">
+        <div class="pattern-header">
+          <div class="pattern-name">Pattern 4: Batch Processing</div>
+          <div class="pattern-cost">~$1-2/hour GPU</div>
+        </div>
+        <div class="pattern-meta">
+          <span>🔧 Self-hosted Llama 3 + Celery + PostgreSQL</span>
+          <span>✓ High volume, cost-sensitive</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cost Comparison -->
+    <div class="section">
+      <h2 class="section-title">Cost Comparison (per 1M tokens)</h2>
+      <table>
+        <tr>
+          <th>Provider</th>
+          <th>Input</th>
+          <th>Output</th>
+          <th>Best For</th>
+        </tr>
+        <tr>
+          <td>GPT-4o</td>
+          <td><span class="cost-highlight">$5.00</span></td>
+          <td>$15.00</td>
+          <td>Complex reasoning</td>
+        </tr>
+        <tr>
+          <td>Claude 3.5 Sonnet</td>
+          <td><span class="cost-highlight">$3.00</span></td>
+          <td>$15.00</td>
+          <td>Coding tasks</td>
+        </tr>
+        <tr>
+          <td>Claude 3 Haiku</td>
+          <td><span class="cost-highlight">$0.25</span></td>
+          <td>$1.25</td>
+          <td>Simple tasks</td>
+        </tr>
+        <tr>
+          <td>GPT-4o Mini</td>
+          <td><span class="cost-highlight">$0.15</span></td>
+          <td>$0.60</td>
+          <td>Cost/performance</td>
+        </tr>
+        <tr>
+          <td>Llama 3 (self-hosted)</td>
+          <td><span class="cost-highlight">~$0.05</span></td>
+          <td>~$0.05</td>
+          <td>Requires GPU management</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Red Flags -->
+    <div class="section">
+      <h2 class="section-title">Red Flags to Avoid</h2>
+      <div class="red-flags">
+        <div class="red-flag-item">
+          <div class="red-flag-number">1</div>
+          <div><strong>No API documentation</strong> — You'll waste weeks reverse engineering</div>
+        </div>
+        <div class="red-flag-item">
+          <div class="red-flag-number">2</div>
+          <div><strong>No pricing page</strong> — Enterprise sales means $$$$</div>
+        </div>
+        <div class="red-flag-item">
+          <div class="red-flag-number">3</div>
+          <div><strong>No SOC 2</strong> — Security teams will block it</div>
+        </div>
+        <div class="red-flag-item">
+          <div class="red-flag-number">4</div>
+          <div><strong>&lt; 100 GitHub stars</strong> — May be abandoned</div>
+        </div>
+        <div class="red-flag-item">
+          <div class="red-flag-number">5</div>
+          <div><strong>No versioned API</strong> — Breaking changes will break you</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Decision Template -->
+    <div class="section">
+      <h2 class="section-title">Your Decision Template</h2>
+      <p>Copy this for your next evaluation:</p>
+      <div class="template-box">
+        <h3>Project: [Name]</h3>
+        <p><strong>Requirements</strong><br>
+        - Latency: [X ms]<br>
+        - Accuracy: [X%]<br>
+        - Budget: [$X/month]<br>
+        - Scale: [X requests/day]</p>
+
+        <p><strong>Candidates Evaluated</strong><br>
+        1. [Tool A] - Score: X/25 - [Decision]<br>
+        2. [Tool B] - Score: X/25 - [Decision]<br>
+        3. [Tool C] - Score: X/25 - [Decision]</p>
+
+        <p><strong>Chosen Solution</strong><br>
+        [Tool] because [reasons]</p>
+
+        <p><strong>POC Results</strong><br>
+        - Latency: X ms ✓/✗<br>
+        - Accuracy: X% ✓/✗<br>
+        - Cost: $X/month ✓/✗</p>
+
+        <p><strong>Decision</strong><br>
+        [Proceed / Pivot / Abandon]</p>
+      </div>
+    </div>
+
+    <!-- Services -->
+    <div class="section">
+      <div class="cta-section">
+        <h2>Need Help With Your AI Stack Decision?</h2>
+        <p>I offer hands-on support for teams building AI systems:</p>
+        <div class="services-list">
+          <div class="service-item">
+            <h4>AI Architecture Audit</h4>
+            <p>2-week comprehensive review ($3,000)</p>
+          </div>
+          <div class="service-item">
+            <h4>RAG System Build</h4>
+            <p>Production-ready implementation ($8,000)</p>
+          </div>
+          <div class="service-item">
+            <h4>Fractional AI Engineer</h4>
+            <p>Ongoing advisory ($10k/month)</p>
+          </div>
+        </div>
+        <p style="margin-top: 20px;">Book a free 15-minute consultation: calendly.com/chinadbo/30min</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>This framework is based on 50+ AI implementations. Results may vary based on your specific use case.</p>
+      <p><strong>AI Stack Decision Framework</strong> © 2026 Ioodu. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
