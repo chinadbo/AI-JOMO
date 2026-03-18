@@ -1,4 +1,5 @@
 {
+  "_comment": "CONFIGURE: Replace all PLACEHOLDER_* values with actual Gumroad links. See docs/external-services.md",
   "products": [
     {
       "id": "ai-stack-decision-matrix",
