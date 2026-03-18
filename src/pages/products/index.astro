@@ -1,0 +1,21 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import productsData from "../../data/products.json";
+---
+
+<BaseLayout title="AI Engineering Products | Ioodu">
+  <h1>AI Engineering Products</h1>
+  <p class="subtitle">Tools and templates to ship AI faster</p>
+
+  <div class="products-grid">
+    {productsData.products.map(product => (
+      <div class="product-card">
+        <h2>{product.name}</h2>
+        <p class="price">${product.price}</p>
+        <p>{product.description}</p>
+        <p class="target">For: {product.targetBuyer}</p>
+        <a href={product.gumroadUrl} class="btn" target="_blank" rel="noopener">Buy on Gumroad</a>
+      </div>
+    ))}
+  </div>
+</BaseLayout>
