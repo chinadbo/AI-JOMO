@@ -26,7 +26,23 @@
       "Bash(node scripts/verify-giscus.js)",
       "Bash(mv scripts/verify-giscus.js scripts/verify-giscus.cjs && node scripts/verify-giscus.cjs)",
       "Bash(grep \"^pubDate:\" src/content/tech/*.mdx | sort -t: -k2 -r | head -10)",
-      "Bash(git worktree:*)"
+      "Bash(git worktree:*)",
+      "Bash(git -C /Users/ioodu/dev/AI/AI-JOMO add src/content/tech/prompt-engineering-production-patterns.mdx && git -C /Users/ioodu/dev/AI/AI-JOMO commit -m \"$\\(cat <<'EOF'\nfeat: add new blog post - Prompt Engineering Production Patterns\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git fetch:*)",
+      "Bash(cd /Users/ioodu/dev/AI/AI-JOMO/.claude/worktrees/agent-a3410597 && cp /Users/ioodu/dev/AI/AI-JOMO/src/content/tech/llm-observability-production.mdx src/content/tech/)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -c \"^\\\\`\\\\`\\\\`\" src/content/tech/llm-observability-production.mdx)",
+      "Bash(grep \"^\\\\`\\\\`\\\\`\" src/content/tech/llm-observability-production.mdx | sort | uniq -c)",
+      "Bash(npx astro:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(sleep:*)",
+      "Bash(curl:*)",
+      "Bash(npx:*)",
+      "Bash(git:*)",
+      "Bash(pkill:*)"
     ]
   }
 }
