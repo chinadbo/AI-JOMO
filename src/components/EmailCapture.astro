@@ -1,0 +1,27 @@
+---
+interface Props {
+  cta: string;
+  offer: string;
+}
+
+const { cta, offer } = Astro.props;
+---
+
+<div class="email-capture" data-offer={offer}>
+  <form action="https://app.convertkit.com/forms/PLACEHOLDER_FORM_ID/submissions" method="post">
+    <input type="email" name="email_address" placeholder="Enter your email" required />
+    <input type="hidden" name="tag" value={offer} />
+    <button type="submit">{cta}</button>
+  </form>
+  <p class="privacy">No spam. Unsubscribe anytime.</p>
+</div>
+
+<style>
+  .email-capture {
+    border: 1px solid var(--border-color);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 2rem 0;
+    background: var(--bg-secondary);
+  }
+</style>

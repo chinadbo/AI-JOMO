@@ -1,0 +1,116 @@
+---
+title: "The Modern AI Engineering Stack 2026"
+description: "A comprehensive guide to building production-ready AI systems in 2026"
+pubDate: 2025-03-18
+tags: ["ai", "machine-learning", "architecture", "2026"]
+categories: ["tech"]
+cover: "/images/ai-stack-2026.jpg"
+draft: false
+author: "Ioodu"
+---
+
+import EmailCapture from "../../components/EmailCapture.astro";
+import ProductCTA from "../../components/ProductCTA.astro";
+import ServiceCTA from "../../components/ServiceCTA.astro";
+
+# The Modern AI Engineering Stack 2026
+
+Building production AI systems in 2026 requires more than just calling an LLM API. This guide covers the complete stack—from model selection to production monitoring.
+
+## Part 1: The Core Stack
+
+The foundation of any AI system starts with choosing the right components:
+
+**LLM Providers:**
+- OpenAI GPT-4.5/5 for general reasoning
+- Anthropic Claude 3.7 for long context (200k tokens)
+- Google Gemini 2.5 for multimodal tasks
+- Open-source options: Llama 3.3, Mistral Large 2
+
+**Frameworks:**
+- LangChain for rapid prototyping
+- LlamaIndex for RAG applications
+- Vercel AI SDK for streaming UIs
+- Pydantic AI for structured outputs
+
+**Deployment:**
+- Modal for serverless GPU inference
+- Replicate for model hosting
+- AWS SageMaker for enterprise scale
+
+<EmailCapture cta="Get the AI Production Checklist" offer="ai-checklist" />
+
+## Part 2: Architecture Patterns
+
+### Retrieval-Augmented Generation (RAG)
+
+The dominant pattern for knowledge-intensive applications:
+
+1. **Chunking Strategy:** Split documents into semantic chunks (512-1024 tokens)
+2. **Embedding Model:** Use text-embedding-3-large for best retrieval
+3. **Vector Store:** Pinecone for managed, pgvector for self-hosted
+4. **Re-ranking:** Cohere Rerank or cross-encoders for precision
+
+### Agent Architectures
+
+For complex multi-step tasks:
+
+- **ReAct Pattern:** Reasoning + Acting loops
+- **Multi-Agent Systems:** Supervisor-workers pattern
+- **Tool Use:** Function calling with validation layers
+
+<ProductCTA product="rag-starter-kit" />
+
+## Part 3: Production Checklist
+
+Before shipping to production, verify:
+
+**Monitoring:**
+- Token usage tracking (predict costs)
+- Latency percentiles (p50, p95, p99)
+- Error rates and failure modes
+- Model version logging
+
+**Safety:**
+- Input validation and sanitization
+- Output moderation (OpenAI Moderation API or self-hosted)
+- Rate limiting per user/IP
+- Circuit breakers for LLM failures
+
+**Evaluation:**
+- Holdout test set with golden answers
+- Automated evals (LLM-as-judge)
+- Human review pipeline
+- A/B testing framework
+
+<EmailCapture cta="Download the complete checklist" offer="ai-checklist" />
+
+## Part 4: Real-World Case Study
+
+I recently helped a fintech startup build a document analysis system. Key lessons:
+
+**What Worked:**
+- Hybrid search (BM25 + vector) improved recall by 23%
+- Structured outputs with Pydantic reduced parsing errors
+- Streaming responses improved perceived performance
+
+**What Did Not:**
+- Initial chunking was too small—context was lost
+- No caching strategy—costs spiraled
+- Insufficient evals—regressions shipped
+
+**Final Architecture:**
+- Claude 3.5 Sonnet for reasoning
+- Pinecone for vector storage
+- Redis for response caching
+- Custom evaluation suite
+
+<ServiceCTA service="architecture-audit" />
+
+---
+
+## What's Next
+
+This stack evolves rapidly. Subscribe for updates as new models and patterns emerge.
+
+<EmailCapture cta="Join the newsletter" offer="newsletter" />

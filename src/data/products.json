@@ -1,0 +1,36 @@
+{
+  "products": [
+    {
+      "id": "ai-stack-decision-matrix",
+      "name": "AI Stack Decision Matrix",
+      "price": 49,
+      "description": "Interactive Notion template for evaluating 50+ AI tools",
+      "gumroadUrl": "https://gumroad.com/l/PLACEHOLDER_MATRIX",
+      "targetBuyer": "Teams evaluating AI"
+    },
+    {
+      "id": "rag-starter-kit",
+      "name": "RAG Starter Kit",
+      "price": 79,
+      "description": "Pre-built code templates for common RAG patterns",
+      "gumroadUrl": "https://gumroad.com/l/PLACEHOLDER_RAG",
+      "targetBuyer": "Developers building RAG"
+    },
+    {
+      "id": "ai-prompt-library",
+      "name": "AI Prompt Library",
+      "price": 39,
+      "description": "200+ production-ready prompts with testing framework",
+      "gumroadUrl": "https://gumroad.com/l/PLACEHOLDER_PROMPTS",
+      "targetBuyer": "AI practitioners"
+    },
+    {
+      "id": "llm-cost-calculator",
+      "name": "LLM Cost Calculator",
+      "price": 29,
+      "description": "Spreadsheet + API tool for forecasting AI costs",
+      "gumroadUrl": "https://gumroad.com/l/PLACEHOLDER_CALC",
+      "targetBuyer": "Engineering managers"
+    }
+  ]
+}

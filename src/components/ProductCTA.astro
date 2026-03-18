@@ -1,0 +1,29 @@
+---
+import productsData from "../data/products.json";
+
+interface Props {
+  product: string;
+}
+
+const { product: productId } = Astro.props;
+const product = productsData.products.find(p => p.id === productId);
+---
+
+{product ? (
+  <div class="product-cta">
+    <h4>{product.name}</h4>
+    <p class="price">${product.price}</p>
+    <p>{product.description}</p>
+    <a href={product.gumroadUrl} class="btn" target="_blank" rel="noopener">Get it on Gumroad</a>
+  </div>
+) : null}
+
+<style>
+  .product-cta {
+    border: 1px solid var(--border-color);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 2rem 0;
+    background: var(--bg-secondary);
+  }
+</style>

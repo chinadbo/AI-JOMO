@@ -1,0 +1,49 @@
+---
+interface Props {
+  service: string;
+}
+
+const services = {
+  "architecture-audit": {
+    title: "AI Architecture Audit",
+    price: "$3,000",
+    description: "2-week comprehensive review of your AI system"
+  },
+  "rag-build": {
+    title: "RAG System Build",
+    price: "$8,000",
+    description: "4-week implementation of production-ready RAG"
+  },
+  "team-training": {
+    title: "Team AI Training",
+    price: "$5,000",
+    description: "2-day workshop for your engineering team"
+  },
+  "fractional": {
+    title: "Fractional AI Engineer",
+    price: "$10k/month",
+    description: "Ongoing advisory and implementation support"
+  }
+};
+
+const service = services[Astro.props.service];
+---
+
+{service ? (
+  <div class="service-cta">
+    <h3>{service.title}</h3>
+    <p class="price">{service.price}</p>
+    <p>{service.description}</p>
+    <a href="/services" class="btn">Learn More</a>
+  </div>
+) : null}
+
+<style>
+  .service-cta {
+    border: 1px solid var(--border-color);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 2rem 0;
+    background: var(--bg-secondary);
+  }
+</style>
