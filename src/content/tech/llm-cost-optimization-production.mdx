@@ -1,7 +1,7 @@
 ---
 title: "LLM Cost Optimization in Production: Strategies That Cut Costs by 80%"
 description: "Production-proven strategies to reduce LLM API costs by 60-80% without sacrificing quality. Covers token optimization, caching, model routing, and async processing with code examples."
-pubDate: 2026-03-20
+pubDate: 2026-03-21
 tags: ["llm", "cost-optimization", "production", "caching", "architecture", "ai-engineering"]
 categories: ["ai-engineering"]
 readingTime: 10
@@ -467,7 +467,7 @@ class BatchProcessor {
 
   async add(query: string): Promise<string> {
     return new Promise((resolve) => {
-      const id = crypto.randomUUID();
+      const id = Math.random().toString(36).substring(2, 15); // or use crypto.randomUUID()
       this.batch.push({ id, query, resolve });
 
       // Flush immediately if batch is full
@@ -559,7 +559,7 @@ class LLMQueue {
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       const request: QueuedRequest = {
-        id: crypto.randomUUID(),
+        id: Math.random().toString(36).substring(2, 15), // or use crypto.randomUUID()
         query,
         priority,
         maxWaitTime,
