@@ -260,3 +260,192 @@ class HybridLLMCache {
 - Consider user-specific vs global caching based on your use case
 
 **Real-world impact:** A documentation search tool achieved a 35% cache hit rate with hybrid caching. At 50K queries/day on GPT-4, that's $525 saved daily.
+
+## Model Routing: Send Simple Queries to Cheaper Models
+
+Not every query needs GPT-4. Many tasks—summarization, formatting, simple Q&A—work fine with GPT-3.5-Turbo at 1/15th the cost. The trick is knowing which queries can be downgraded without quality loss.
+
+### Intent-Based Classification
+
+Classify queries by complexity before routing:
+
+```typescript
+interface RoutingDecision {
+  model: string;
+  estimatedCost: number;
+  confidence: number;
+  reason: string;
+}
+
+class ModelRouter {
+  private costs = {
+    'gpt-4': 0.03,           // per 1K input tokens
+    'gpt-3.5-turbo': 0.002,  // per 1K input tokens
+    'local-llm': 0.0001      // approximate cost
+  };
+
+  async route(query: string, estimatedTokens: number): Promise<RoutingDecision> {
+    const complexity = this.classifyComplexity(query);
+    const requiresCreativity = this.requiresCreativity(query);
+    const hasContext = query.includes('Context:') || query.includes('Based on');
+
+    // Decision logic
+    if (complexity === 'simple' && !requiresCreativity) {
+      return {
+        model: 'gpt-3.5-turbo',
+        estimatedCost: this.calculateCost('gpt-3.5-turbo', estimatedTokens),
+        confidence: 0.92,
+        reason: 'Simple query, no creativity required'
+      };
+    }
+
+    if (complexity === 'medium' && !requiresCreativity && !hasContext) {
+      return {
+        model: 'gpt-3.5-turbo',
+        estimatedCost: this.calculateCost('gpt-3.5-turbo', estimatedTokens),
+        confidence: 0.78,
+        reason: 'Medium complexity, trying cheaper model first'
+      };
+    }
+
+    return {
+      model: 'gpt-4',
+      estimatedCost: this.calculateCost('gpt-4', estimatedTokens),
+      confidence: 0.95,
+      reason: 'Complex query or requires high-quality output'
+    };
+  }
+
+  private classifyComplexity(query: string): 'simple' | 'medium' | 'complex' {
+    const complexIndicators = [
+      'complex', 'detailed', 'explain', 'analyze', 'compare', 'evaluate',
+      'architecture', 'design', 'optimization', 'debug'
+    ];
+    const mediumIndicators = [
+      'summarize', 'rephrase', 'convert', 'translate', 'format'
+    ];
+
+    const lower = query.toLowerCase();
+    const complexScore = complexIndicators.reduce(
+      (sum, word) => sum + (lower.includes(word) ? 1 : 0), 0
+    );
+    const mediumScore = mediumIndicators.reduce(
+      (sum, word) => sum + (lower.includes(word) ? 1 : 0), 0
+    );
+
+    if (complexScore >= 2) return 'complex';
+    if (complexScore === 1 || mediumScore >= 2) return 'medium';
+    return 'simple';
+  }
+
+  private requiresCreativity(query: string): boolean {
+    const creativeIndicators = [
+      'write', 'create', 'generate', 'draft', 'compose', 'author',
+      'story', 'poem', 'creative', 'novel', 'blog post'
+    ];
+    const lower = query.toLowerCase();
+    return creativeIndicators.some(word => lower.includes(word));
+  }
+
+  private calculateCost(model: string, tokens: number): number {
+    return (this.costs[model] * tokens) / 1000;
+  }
+}
+```
+
+### Cascade Routing with Fallback
+
+Try the cheaper model first, escalate if quality is insufficient:
+
+```typescript
+class CascadeRouter {
+  private router: ModelRouter;
+  private qualityChecker: QualityChecker;
+
+  async routeWithFallback(query: string, context: string): Promise<LLMResponse> {
+    const decision = await this.router.route(query, this.estimateTokens(context));
+
+    // Try primary model
+    const primaryResponse = await this.callLLM(decision.model, query, context);
+
+    // If confidence is low, check quality
+    if (decision.confidence < 0.85) {
+      const quality = await this.qualityChecker.evaluate(primaryResponse, query);
+
+      if (quality.score < 0.8 && decision.model !== 'gpt-4') {
+        console.log(`Quality check failed (${quality.score}), escalating to GPT-4`);
+        return await this.callLLM('gpt-4', query, context);
+      }
+    }
+
+    return primaryResponse;
+  }
+
+  private estimateTokens(text: string): number {
+    return Math.ceil(text.length / 4);
+  }
+
+  private async callLLM(model: string, query: string, context: string): Promise<LLMResponse> {
+    // Your LLM call implementation
+    return { model, content: '', tokensUsed: 0 };
+  }
+}
+
+// Quality checker stub
+class QualityChecker {
+  async evaluate(response: LLMResponse, query: string): Promise<{ score: number }> {
+    // Implement quality metrics: coherence, relevance, completeness
+    // For production, use a smaller model or heuristics
+    return { score: 0.85 };
+  }
+}
+
+interface LLMResponse {
+  model: string;
+  content: string;
+  tokensUsed: number;
+}
+```
+
+### Cost-Aware Routing by User Tier
+
+Different users have different quality requirements:
+
+```typescript
+class TieredRouter {
+  async route(query: string, userTier: 'free' | 'pro' | 'enterprise'): Promise<RoutingDecision> {
+    const router = new ModelRouter();
+    const baseDecision = await router.route(query, 1000);
+
+    switch (userTier) {
+      case 'free':
+        // Free users get cheapest viable option
+        return {
+          ...baseDecision,
+          model: baseDecision.model === 'gpt-4' ? 'gpt-3.5-turbo' : baseDecision.model
+        };
+
+      case 'pro':
+        // Pro users get smart routing with occasional GPT-4
+        return baseDecision;
+
+      case 'enterprise':
+        // Enterprise gets GPT-4 for everything that might need it
+        return {
+          model: 'gpt-4',
+          estimatedCost: 0.03, // Always use GPT-4 cost
+          confidence: 1.0,
+          reason: 'Enterprise tier - maximum quality'
+        };
+    }
+  }
+}
+```
+
+**Production considerations:**
+- Track routing decisions and outcomes in your analytics
+- A/B test routing strategies to find the quality/cost sweet spot
+- Monitor user complaints—if they notice quality degradation, adjust thresholds
+- Consider latency: GPT-3.5 is faster, which might matter more than cost for some use cases
+
+**Real-world impact:** Smart routing alone reduced one client's GPT-4 usage by 60%. They routed simple queries (summarization, formatting) to GPT-3.5 while keeping GPT-4 for complex analysis. Monthly savings: $3,200.
