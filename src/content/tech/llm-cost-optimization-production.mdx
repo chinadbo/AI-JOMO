@@ -90,3 +90,173 @@ console.log(`Saved ${counter.estimateTokens(original) - counter.estimateTokens(c
 ```
 
 **Real-world impact:** A client reduced their average prompt size from 1,200 tokens to 850 tokens using these techniques. At 100K requests per day, that's $1,050 saved monthly on GPT-4 alone.
+
+## Caching Strategies: Don't Pay Twice for the Same Answer
+
+Caching is the single highest-impact optimization for most applications. If 30% of your queries are repeats—or semantically similar—you're burning money.
+
+### Exact-Match Caching
+
+Start here. It's simple and effective:
+
+```typescript
+class ExactMatchCache {
+  private cache = new Map<string, { response: string; timestamp: number }>();
+  private ttl = 3600_000; // 1 hour in milliseconds
+
+  get(key: string): string | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+    return entry.response;
+  }
+
+  set(key: string, response: string): void {
+    this.cache.set(key, { response, timestamp: Date.now() });
+  }
+
+  // For production, use Redis with TTL instead of in-memory
+}
+```
+
+**When to use:** FAQ bots, documentation search, code generation with identical inputs.
+
+### Semantic Caching
+
+Exact match is too rigid. Users ask "How do I authenticate?" and "What's the auth process?"—same intent, different words. Semantic caching uses embeddings to find similar queries:
+
+```typescript
+interface CacheEntry {
+  query: string;
+  embedding: number[];
+  response: string;
+  timestamp: number;
+  hitCount: number;
+}
+
+class SemanticCache {
+  private cache = new Map<string, CacheEntry>();
+  private similarityThreshold = 0.92;
+  private maxSize = 10000;
+
+  async get(query: string, embedding: number[]): Promise<string | null> {
+    let bestMatch: CacheEntry | null = null;
+    let bestSimilarity = 0;
+
+    for (const entry of this.cache.values()) {
+      const similarity = this.cosineSimilarity(embedding, entry.embedding);
+      if (similarity > this.similarityThreshold && similarity > bestSimilarity) {
+        bestSimilarity = similarity;
+        bestMatch = entry;
+      }
+    }
+
+    if (bestMatch) {
+      bestMatch.hitCount++;
+      return bestMatch.response;
+    }
+
+    return null;
+  }
+
+  async set(query: string, embedding: number[], response: string): Promise<void> {
+    // Evict oldest if at capacity
+    if (this.cache.size >= this.maxSize) {
+      const oldest = this.findLeastUsed();
+      if (oldest) this.cache.delete(oldest);
+    }
+
+    this.cache.set(query, {
+      query,
+      embedding,
+      response,
+      timestamp: Date.now(),
+      hitCount: 1
+    });
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length) throw new Error('Dimension mismatch');
+    let dot = 0, normA = 0, normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  private findLeastUsed(): string | null {
+    let minHits = Infinity;
+    let key: string | null = null;
+    for (const [k, v] of this.cache.entries()) {
+      if (v.hitCount < minHits) {
+        minHits = v.hitCount;
+        key = k;
+      }
+    }
+    return key;
+  }
+}
+```
+
+**Key parameters:**
+- **Threshold (0.92):** Higher = more strict, fewer false positives. Lower = more aggressive caching. Tune based on your tolerance for approximate matches.
+- **Embedding model:** Use `text-embedding-3-small` for cost efficiency. It's cheap and good enough for caching.
+- **Cache size:** Start with 10K entries. Monitor hit rate and memory usage.
+
+### Hybrid Approach: Two-Tier Caching
+
+Combine both strategies for maximum efficiency:
+
+```typescript
+class HybridLLMCache {
+  private exactCache: ExactMatchCache;
+  private semanticCache: SemanticCache;
+  private embeddingClient: any; // Your OpenAI client
+
+  constructor() {
+    this.exactCache = new ExactMatchCache();
+    this.semanticCache = new SemanticCache();
+  }
+
+  async get(query: string): Promise<string | null> {
+    // Tier 1: Exact match (fastest)
+    const exact = this.exactCache.get(query);
+    if (exact) return exact;
+
+    // Tier 2: Semantic match (requires embedding)
+    const embedding = await this.getEmbedding(query);
+    const semantic = await this.semanticCache.get(query, embedding);
+    if (semantic) return semantic;
+
+    return null;
+  }
+
+  async set(query: string, response: string): Promise<void> {
+    const embedding = await this.getEmbedding(query);
+    this.exactCache.set(query, response);
+    await this.semanticCache.set(query, embedding, response);
+  }
+
+  private async getEmbedding(text: string): Promise<number[]> {
+    // Cache embeddings too
+    const response = await this.embeddingClient.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: text
+    });
+    return response.data[0].embedding;
+  }
+}
+```
+
+**Production considerations:**
+- Use Redis with vector search for semantic caching at scale
+- Implement cache warming for common queries
+- Add cache hit rate monitoring (aim for >30%)
+- Consider user-specific vs global caching based on your use case
+
+**Real-world impact:** A documentation search tool achieved a 35% cache hit rate with hybrid caching. At 50K queries/day on GPT-4, that's $525 saved daily.
