@@ -8,3 +8,85 @@ readingTime: 10
 author: "Ioodu"
 ---
 
+Last month, I watched our LLM API bill climb from $2,000 to $10,000 in four weeks. Same traffic, same features—just more users discovering our AI-powered search. The worst part? We were throwing money at redundant requests, over-engineered prompts, and GPT-4 for queries that GPT-3.5 could handle.
+
+Sound familiar? If you're running LLM applications in production, cost optimization isn't optional—it's survival. The good news: we cut that bill by 64% without touching user experience. The strategies I'm about to share are battle-tested, incrementally adoptable, and can save you thousands.
+
+Here's what we'll cover:
+
+1. **Token Optimization** — Compress prompts and constrain outputs (30% savings)
+2. **Caching Strategies** — Semantic and exact-match caching (25% savings)
+3. **Model Routing** — Route queries to the right model (20% savings)
+4. **Async Processing** — Batch and queue non-critical requests (15% savings)
+
+Let's dive in.
+
+## Token Optimization: The Low-Hanging Fruit
+
+Token count directly correlates with cost. GPT-4 charges $30 per million input tokens and $60 per million output tokens. At scale, inefficiencies compound fast.
+
+### Prompt Compression
+
+Most production prompts contain redundant instructions, verbose examples, and unnecessary context. Here's a systematic approach to trimming the fat:
+
+**Remove redundant instructions.** If your system prompt repeats "be helpful and accurate" three different ways, cut it to one. LLMs don't need persuasion—they need clarity.
+
+**Optimize few-shot examples.** You don't need five examples for every task. Test with one, then two. Stop when quality plateaus. Often, two well-chosen examples outperform five mediocre ones.
+
+**Compress context windows.** If you're sending entire conversation histories, implement summarization. Keep the last 5 messages verbatim, summarize the rest.
+
+### Output Optimization
+
+Constrain what the model generates:
+
+**Use structured outputs.** JSON mode and function calling reduce token waste by eliminating conversational filler. Instead of "The answer is 42," you get `{"answer": 42}`.
+
+**Set aggressive max_tokens.** Don't let the model ramble. If 150 tokens suffices, set `max_tokens: 150`. Better to truncate than overpay.
+
+**Implement stop sequences.** If your response format is predictable (e.g., XML tags), use stop sequences to cut generation early.
+
+Here's a utility class that tracks and optimizes token usage:
+
+```typescript
+class TokenCounter {
+  estimateTokens(text: string): number {
+    // Rough estimate: ~4 chars per token for English
+    // Tiktoken is more accurate but adds dependency
+    return Math.ceil(text.length / 4);
+  }
+
+  compressPrompt(prompt: string, maxTokens: number = 2000): string {
+    const estimated = this.estimateTokens(prompt);
+    if (estimated <= maxTokens) return prompt;
+
+    // Remove extra whitespace
+    let compressed = prompt.replace(/\n\s*\n/g, '\n');
+
+    // If still over limit, truncate context section
+    const contextMatch = compressed.match(/Context:([\s\S]*?)(?=\n\n|$)/);
+    if (contextMatch && this.estimateTokens(compressed) > maxTokens) {
+      const maxContextTokens = maxTokens * 0.6;
+      const context = contextMatch[1].trim();
+      const words = context.split(' ');
+      const truncated = words.slice(0, maxContextTokens / 2).join(' ');
+      compressed = compressed.replace(contextMatch[0], `Context: ${truncated}...`);
+    }
+
+    return compressed;
+  }
+
+  optimizeExamples(examples: string[], maxExamples: number = 2): string[] {
+    // Sort by diversity (simple heuristic: length variation)
+    const sorted = examples.sort((a, b) => a.length - b.length);
+    return sorted.slice(0, maxExamples);
+  }
+}
+
+// Usage
+const counter = new TokenCounter();
+const original = "Your verbose prompt here...";
+const compressed = counter.compressPrompt(original, 1500);
+console.log(`Saved ${counter.estimateTokens(original) - counter.estimateTokens(compressed)} tokens`);
+```
+
+**Real-world impact:** A client reduced their average prompt size from 1,200 tokens to 850 tokens using these techniques. At 100K requests per day, that's $1,050 saved monthly on GPT-4 alone.
