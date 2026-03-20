@@ -449,3 +449,197 @@ class TieredRouter {
 - Consider latency: GPT-3.5 is faster, which might matter more than cost for some use cases
 
 **Real-world impact:** Smart routing alone reduced one client's GPT-4 usage by 60%. They routed simple queries (summarization, formatting) to GPT-3.5 while keeping GPT-4 for complex analysis. Monthly savings: $3,200.
+
+## Async Processing: Batch for Efficiency
+
+Not every request needs an immediate response. Analytics, background processing, and non-critical features can be batched and queued, reducing rate limit pressure and enabling better resource allocation.
+
+### Batch Processing
+
+Combine multiple small requests into larger batches:
+
+```typescript
+class BatchProcessor {
+  private batch: Array<{ id: string; query: string; resolve: (result: string) => void }> = [];
+  private maxBatchSize = 20;
+  private flushInterval = 5000; // 5 seconds
+  private timeout: NodeJS.Timeout | null = null;
+
+  async add(query: string): Promise<string> {
+    return new Promise((resolve) => {
+      const id = crypto.randomUUID();
+      this.batch.push({ id, query, resolve });
+
+      // Flush immediately if batch is full
+      if (this.batch.length >= this.maxBatchSize) {
+        this.flush();
+      } else {
+        // Otherwise schedule flush
+        this.scheduleFlush();
+      }
+    });
+  }
+
+  private scheduleFlush(): void {
+    if (this.timeout) return; // Already scheduled
+
+    this.timeout = setTimeout(() => {
+      this.flush();
+    }, this.flushInterval);
+  }
+
+  private async flush(): Promise<void> {
+    if (this.batch.length === 0) return;
+
+    // Clear timeout and batch
+    if (this.timeout) {
+      clearTimeout(this.timeout);
+      this.timeout = null;
+    }
+    const currentBatch = this.batch.splice(0, this.maxBatchSize);
+
+    // Process batch
+    console.log(`Processing batch of ${currentBatch.length} requests`);
+    const results = await this.processBatch(currentBatch.map(b => b.query));
+
+    // Resolve promises
+    currentBatch.forEach((item, index) => {
+      item.resolve(results[index]);
+    });
+  }
+
+  private async processBatch(queries: string[]): Promise<string[]> {
+    // Combine into single prompt for efficiency
+    const combinedPrompt = `Process the following ${queries.length} queries and return results as JSON array:
+${queries.map((q, i) => `${i + 1}. ${q}`).join('\n')}`;
+
+    const response = await this.callLLM(combinedPrompt);
+
+    // Parse and split results
+    try {
+      return JSON.parse(response);
+    } catch {
+      // Fallback: return empty results if parsing fails
+      return queries.map(() => 'Error processing');
+    }
+  }
+
+  private async callLLM(prompt: string): Promise<string> {
+    // Your LLM implementation
+    return '[]';
+  }
+}
+```
+
+### Queue-Based Architecture
+
+For production, use a proper message queue:
+
+```typescript
+interface QueuedRequest {
+  id: string;
+  query: string;
+  priority: 'high' | 'medium' | 'low';
+  maxWaitTime: number;
+  createdAt: number;
+}
+
+class LLMQueue {
+  private highPriority: QueuedRequest[] = [];
+  private mediumPriority: QueuedRequest[] = [];
+  private lowPriority: QueuedRequest[] = [];
+  private processing = false;
+  private maxConcurrency = 5;
+  private currentConcurrency = 0;
+
+  async enqueue(
+    query: string,
+    priority: 'high' | 'medium' | 'low' = 'medium',
+    maxWaitTime = 30000
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const request: QueuedRequest = {
+        id: crypto.randomUUID(),
+        query,
+        priority,
+        maxWaitTime,
+        createdAt: Date.now()
+      };
+
+      // Store resolver with request (simplified for example)
+      (request as any).resolve = resolve;
+      (request as any).reject = reject;
+
+      // Add to appropriate queue
+      if (priority === 'high') this.highPriority.push(request);
+      else if (priority === 'medium') this.mediumPriority.push(request);
+      else this.lowPriority.push(request);
+
+      this.processQueue();
+    });
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.processing) return;
+    this.processing = true;
+
+    while (
+      this.currentConcurrency < this.maxConcurrency &&
+      (this.highPriority.length > 0 ||
+       this.mediumPriority.length > 0 ||
+       this.lowPriority.length > 0)
+    ) {
+      const request = this.getNextRequest();
+      if (!request) break;
+
+      // Check if request has waited too long
+      if (Date.now() - request.createdAt > request.maxWaitTime) {
+        (request as any).reject(new Error('Request timeout'));
+        continue;
+      }
+
+      this.currentConcurrency++;
+      this.processRequest(request).finally(() => {
+        this.currentConcurrency--;
+        this.processQueue();
+      });
+    }
+
+    this.processing = false;
+  }
+
+  private getNextRequest(): QueuedRequest | null {
+    if (this.highPriority.length > 0) return this.highPriority.shift()!;
+    if (this.mediumPriority.length > 0) return this.mediumPriority.shift()!;
+    if (this.lowPriority.length > 0) return this.lowPriority.shift()!;
+    return null;
+  }
+
+  private async processRequest(request: QueuedRequest): Promise<void> {
+    try {
+      const result = await this.callLLM(request.query);
+      (request as any).resolve(result);
+    } catch (error) {
+      (request as any).reject(error);
+    }
+  }
+
+  private async callLLM(query: string): Promise<string> {
+    // Your LLM implementation with retry logic
+    return '';
+  }
+}
+```
+
+**Use cases:**
+- **Analytics queries:** User behavior analysis, trend detection
+- **Background processing:** Document indexing, content generation
+- **Non-critical features:** Suggestions, recommendations, previews
+
+**Production considerations:**
+- Implement dead letter queues for failed requests
+- Monitor queue depth and processing latency
+- Set up alerts for queue backup
+- Consider separate queues for different model types
+
+**Real-world impact:** Batching analytics queries reduced API calls by 40%. Instead of 1,000 individual requests, they sent 50 batches of 20. The savings came from reduced overhead and better rate limit utilization.
